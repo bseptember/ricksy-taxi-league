@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>Ricksy Taxi League — kasi car soccer</title>
+<meta name="description" content="Retro pixel car soccer, Mzansi style. Drive a minibus taxi, carry the ball on the roof, and bang goals in the 5-minute kasi derby. Free, no install." />
+<meta name="theme-color" content="#12002b" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+<!-- Share card (WhatsApp / social) -->
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="iMidlalo" />
+<meta property="og:title" content="Ricksy Taxi League" />
+<meta property="og:description" content="Minibus taxis. Car soccer. One kasi derby at a time. Retro pixel football with boost, carries and bangers." />
+<meta property="og:url" content="https://ricksytaxi.imidlalo.co.za/" />
+<meta property="og:image" content="https://ricksytaxi.imidlalo.co.za/og-image.jpg" />
+<meta property="og:image:secure_url" content="https://ricksytaxi.imidlalo.co.za/og-image.jpg" />
+<meta property="og:image:type" content="image/jpeg" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="Ricksy Taxi League — retro pixel taxis playing car soccer" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Ricksy Taxi League" />
+<meta name="twitter:description" content="Minibus taxis. Car soccer. One kasi derby at a time." />
+<meta name="twitter:image" content="https://ricksytaxi.imidlalo.co.za/og-image.jpg" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%2312002b'/><text y='.9em' font-size='70'>🚐</text></svg>" />
+
+<!-- Pixel font: self-hosted with graceful fallback to monospace -->
+<style>
+  @font-face {
+    font-family: "Press Start 2P";
+    src: url("fonts/pressstart2p.woff2") format("woff2");
+    font-display: swap;
+  }
+  :root {
+    --sat: env(safe-area-inset-top, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+    --sal: env(safe-area-inset-left, 0px);
+    --sar: env(safe-area-inset-right, 0px);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100%;
+    background: #0d0a1a;
+    overflow: hidden;
+    touch-action: none;
+    -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+  }
+  #game { display: block; width: 100vw; height: 100vh; image-rendering: pixelated; }
+
+  /* ---- touch overlay ---- */
+  #rtl-touch { position: fixed; inset: 0; display: none; z-index: 10; pointer-events: none; }
+  #rtl-stick {
+    position: absolute;
+    left: calc(24px + var(--sal)); bottom: calc(24px + var(--sab));
+    width: 124px; height: 124px; border-radius: 50%;
+    background: rgba(255,255,255,0.06);
+    border: 2px solid rgba(255,255,255,0.22);
+    pointer-events: auto;
+  }
+  #rtl-stick::after {
+    content: ""; position: absolute; left: 50%; top: 50%;
+    width: 48px; height: 48px; border-radius: 50%;
+    transform: translate(-50%,-50%);
+    background: rgba(255,255,255,0.18);
+    border: 2px solid rgba(255,255,255,0.35);
+  }
+  .rtl-btn {
+    position: absolute;
+    width: 74px; height: 74px; border-radius: 50%;
+    background: rgba(18,34,56,0.55);
+    border: 2px solid rgba(255,255,255,0.25);
+    color: #eaf4ff; font-family: "Press Start 2P", monospace;
+    font-size: 9px; line-height: 70px; text-align: center;
+    pointer-events: auto;
+  }
+  .rtl-btn:active { background: rgba(61,160,255,0.45); }
+  #rtl-b-boost { right: calc(20px + var(--sar)); bottom: calc(96px + var(--sab)); border-color: #ffd60a; color: #ffd60a; }
+  #rtl-b-jump  { right: calc(104px + var(--sar)); bottom: calc(24px + var(--sab)); }
+  #rtl-b-shoot { right: calc(20px + var(--sar)); bottom: calc(188px + var(--sab)); }
+  #rtl-b-carry { right: calc(104px + var(--sar)); bottom: calc(150px + var(--sab)); }
+  #rtl-b-cam, #rtl-b-pause {
+    width: 52px; height: 52px; line-height: 48px; font-size: 8px;
+    top: calc(14px + var(--sat)); bottom: auto;
+  }
+  #rtl-b-cam   { left: calc(14px + var(--sal)); }
+  #rtl-b-pause { left: calc(76px + var(--sal)); }
+
+  /* ---- loading splash ---- */
+  #splash {
+    position: fixed; inset: 0; z-index: 20;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: #0d0a1a; color: #ffd60a;
+    font-family: "Press Start 2P", monospace; font-size: 12px; text-align: center;
+    gap: 14px; transition: opacity .4s;
+  }
+  #splash small { color: #8fa8c8; font-size: 8px; }
+</style>
+</head>
+<body>
+<canvas id="game" width="800" height="600"></canvas>
+<div id="splash">
+  <div>RICKSY TAXI LEAGUE</div>
+  <small>WARMING UP THE KOMBI...</small>
+</div>
+<script src="js_parts/01_constants.js"></script>
+<script src="js_parts/02_math.js"></script>
+<script src="js_parts/03_sprites.js"></script>
+<script src="js_parts/04_audio.js"></script>
+<script src="js_parts/05_world.js"></script>
+<script src="js_parts/06_sim.js"></script>
+<script src="js_parts/07_ai.js"></script>
+<script src="js_parts/08_events.js"></script>
+<script src="js_parts/09_render.js"></script>
+<script src="js_parts/10_input.js"></script>
+<script src="js_parts/11_camera.js"></script>
+<script src="js_parts/12_ui.js"></script>
+<script src="js_parts/13_main.js"></script>
+<script>
+  /* hide splash once the game boots */
+  window.addEventListener("rtl:booted", function () {
+    var s = document.getElementById("splash");
+    if (s) { s.style.opacity = "0"; setTimeout(function () { s.remove(); }, 450); }
+  });
+</script>
+</body>
+</html>

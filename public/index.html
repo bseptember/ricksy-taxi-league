@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-<title>Ricksy Taxi League — kasi car soccer</title>
-<meta name="description" content="Retro pixel car soccer, Mzansi style. Drive a minibus taxi, carry the ball on the roof, and bang goals in the 5-minute kasi derby. Free, no install." />
-<meta name="theme-color" content="#12002b" />
+<title>Ricksy Taxi League 3D — rocket car soccer</title>
+<meta name="description" content="Rocket-powered minibus taxis. Real 3D car soccer: aerials, flips, boost, supersonic demos — retro Mzansi style. Free, no install." />
+<meta name="theme-color" content="#120e26" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -13,22 +13,21 @@
 <!-- Share card (WhatsApp / social) -->
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="iMidlalo" />
-<meta property="og:title" content="Ricksy Taxi League" />
-<meta property="og:description" content="Minibus taxis. Car soccer. One kasi derby at a time. Retro pixel football with boost, carries and bangers." />
+<meta property="og:title" content="Ricksy Taxi League 3D" />
+<meta property="og:description" content="Rocket-powered minibus taxis. Aerials, flips, boost, demos — real 3D car soccer, retro Mzansi style." />
 <meta property="og:url" content="https://ricksytaxi.imidlalo.co.za/" />
 <meta property="og:image" content="https://ricksytaxi.imidlalo.co.za/og-image.jpg" />
 <meta property="og:image:secure_url" content="https://ricksytaxi.imidlalo.co.za/og-image.jpg" />
 <meta property="og:image:type" content="image/jpeg" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
-<meta property="og:image:alt" content="Ricksy Taxi League — retro pixel taxis playing car soccer" />
+<meta property="og:image:alt" content="Ricksy Taxi League 3D — rocket taxis playing car soccer" />
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="Ricksy Taxi League" />
-<meta name="twitter:description" content="Minibus taxis. Car soccer. One kasi derby at a time." />
+<meta name="twitter:title" content="Ricksy Taxi League 3D" />
+<meta name="twitter:description" content="Rocket-powered minibus taxis. Real 3D car soccer." />
 <meta name="twitter:image" content="https://ricksytaxi.imidlalo.co.za/og-image.jpg" />
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%2312002b'/><text y='.9em' font-size='70'>🚐</text></svg>" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23120e26'/><text y='.9em' font-size='70'>🚐</text></svg>" />
 
-<!-- Pixel font: self-hosted with graceful fallback to monospace -->
 <style>
   @font-face {
     font-family: "Press Start 2P";
@@ -44,89 +43,163 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body {
     width: 100%; height: 100%;
-    background: #0d0a1a;
-    overflow: hidden;
+    background: #120e26; overflow: hidden;
     touch-action: none;
     -webkit-user-select: none; user-select: none;
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior: none;
+    font-family: "Press Start 2P", monospace;
   }
-  #game { display: block; width: 100vw; height: 100vh; image-rendering: pixelated; }
+  #game3d { display: block; width: 100vw; height: 100vh; }
 
-  /* ---- touch overlay ---- */
-  #rtl-touch { position: fixed; inset: 0; display: none; z-index: 10; pointer-events: none; }
-  #rtl-stick {
-    position: absolute;
-    left: calc(24px + var(--sal)); bottom: calc(24px + var(--sab));
-    width: 124px; height: 124px; border-radius: 50%;
-    background: rgba(255,255,255,0.06);
-    border: 2px solid rgba(255,255,255,0.22);
-    pointer-events: auto;
+  /* ---------- HUD ---------- */
+  #hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; color: #eaf4ff; }
+  #scoreboard {
+    position: absolute; top: calc(10px + var(--sat)); left: 50%; transform: translateX(-50%);
+    display: flex; gap: 14px; align-items: center;
+    background: rgba(11,21,34,.88); border: 2px solid rgba(255,255,255,.18);
+    padding: 8px 18px; font-size: 16px;
   }
-  #rtl-stick::after {
-    content: ""; position: absolute; left: 50%; top: 50%;
-    width: 48px; height: 48px; border-radius: 50%;
-    transform: translate(-50%,-50%);
-    background: rgba(255,255,255,0.18);
-    border: 2px solid rgba(255,255,255,0.35);
+  #scoreboard .blue { color: #3aa0ff; }
+  #scoreboard .orange { color: #ff8a2a; }
+  #scoreboard .clock { color: #fff; font-size: 14px; }
+  #boostwrap {
+    position: absolute; left: calc(14px + var(--sal)); bottom: calc(18px + var(--sab));
+    width: 150px; height: 18px; background: #0e2033; border: 2px solid rgba(255,255,255,.25);
   }
-  .rtl-btn {
-    position: absolute;
-    width: 74px; height: 74px; border-radius: 50%;
-    background: rgba(18,34,56,0.55);
-    border: 2px solid rgba(255,255,255,0.25);
-    color: #eaf4ff; font-family: "Press Start 2P", monospace;
-    font-size: 9px; line-height: 70px; text-align: center;
-    pointer-events: auto;
+  #boostbar { height: 100%; background: #ffd60a; width: 33%; }
+  #boostnum { position: absolute; left: 50%; top: -22px; transform: translateX(-50%); font-size: 9px; color: #ffd60a; }
+  #boostwrap::before { content: "BOOST"; position: absolute; left: 0; top: -22px; font-size: 9px; color: #8fa8c8; }
+  #camchip {
+    position: absolute; right: calc(14px + var(--sar)); bottom: calc(18px + var(--sab));
+    font-size: 9px; color: #8fa8c8; background: rgba(11,21,34,.8);
+    padding: 7px 10px; border: 2px solid rgba(255,255,255,.16);
   }
-  .rtl-btn:active { background: rgba(61,160,255,0.45); }
-  #rtl-b-boost { right: calc(20px + var(--sar)); bottom: calc(96px + var(--sab)); border-color: #ffd60a; color: #ffd60a; }
-  #rtl-b-jump  { right: calc(104px + var(--sar)); bottom: calc(24px + var(--sab)); }
-  #rtl-b-shoot { right: calc(20px + var(--sar)); bottom: calc(188px + var(--sab)); }
-  #rtl-b-carry { right: calc(104px + var(--sar)); bottom: calc(150px + var(--sab)); }
-  #rtl-b-cam, #rtl-b-pause {
-    width: 52px; height: 52px; line-height: 48px; font-size: 8px;
-    top: calc(14px + var(--sat)); bottom: auto;
+  #countdown {
+    position: absolute; left: 50%; top: 34%; transform: translate(-50%,-50%);
+    font-size: 64px; color: #fff; text-shadow: 4px 4px 0 #000;
   }
-  #rtl-b-cam   { left: calc(14px + var(--sal)); }
-  #rtl-b-pause { left: calc(76px + var(--sal)); }
+  #goalbanner {
+    position: absolute; left: 50%; top: 30%; transform: translate(-50%,-50%);
+    font-size: 24px; padding: 16px 30px; color: #fff; text-align: center;
+    text-shadow: 3px 3px 0 #000;
+  }
+  #goalbanner.blue { background: rgba(31,111,196,.92); }
+  #goalbanner.orange { background: rgba(209,106,21,.92); }
 
-  /* ---- loading splash ---- */
-  #splash {
+  /* ---------- menus ---------- */
+  #menu, #over {
     position: fixed; inset: 0; z-index: 20;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    background: #0d0a1a; color: #ffd60a;
-    font-family: "Press Start 2P", monospace; font-size: 12px; text-align: center;
-    gap: 14px; transition: opacity .4s;
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    gap: 16px; text-align: center;
+    background: rgba(9,7,20,.82); color: #eaf4ff; padding: 20px;
   }
-  #splash small { color: #8fa8c8; font-size: 8px; }
+  #menu h1, #over h2 { color: #ffd60a; font-size: clamp(16px, 4.5vw, 30px); text-shadow: 4px 4px 0 #000; }
+  #menu .sub { font-size: 9px; color: #8fa8c8; line-height: 1.9; }
+  .btnrow { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  button {
+    font-family: inherit; cursor: pointer;
+    background: #132238; color: #eaf4ff;
+    border: 2px solid rgba(255,255,255,.25); padding: 12px 18px; font-size: 11px;
+  }
+  button:hover { border-color: #ffd60a; }
+  button.sel { background: #1d4a70; border-color: #ffd60a; color: #fff; }
+  #btn-play { background: #1d5a30; border-color: #2ee66b; font-size: 15px; padding: 16px 40px; }
+  .controls-hint { font-size: 8px; color: #8fa8c8; line-height: 2.1; max-width: 560px; }
+  .controls-hint b { color: #ffd60a; }
+
+  /* ---------- touch controls ---------- */
+  #touch { position: fixed; inset: 0; z-index: 10; pointer-events: none; display: none; }
+  body.touch #touch { display: block; }
+  #t-stick {
+    position: absolute; left: calc(26px + var(--sal)); bottom: calc(30px + var(--sab));
+    width: 130px; height: 130px; border-radius: 50%;
+    background: rgba(255,255,255,.05); border: 2px solid rgba(255,255,255,.25);
+    pointer-events: auto;
+  }
+  #t-knob {
+    position: absolute; left: 50%; top: 50%; width: 52px; height: 52px;
+    margin: -26px 0 0 -26px; border-radius: 50%;
+    background: rgba(255,255,255,.2); border: 2px solid rgba(255,255,255,.4);
+  }
+  .tbtn {
+    position: absolute; width: 78px; height: 78px; border-radius: 50%;
+    background: rgba(18,34,56,.6); border: 2px solid rgba(255,255,255,.3);
+    color: #eaf4ff; font-size: 9px; display: flex; align-items: center; justify-content: center;
+    pointer-events: auto;
+  }
+  .tbtn:active { background: rgba(61,160,255,.5); }
+  #t-boost { right: calc(22px + var(--sar)); bottom: calc(104px + var(--sab)); border-color: #ffd60a; color: #ffd60a; }
+  #t-jump  { right: calc(112px + var(--sar)); bottom: calc(28px + var(--sab)); }
+  #t-cam   { right: calc(22px + var(--sar)); top: calc(64px + var(--sat)); width: 58px; height: 58px; font-size: 8px; }
+  #t-pause { right: calc(90px + var(--sar)); top: calc(64px + var(--sat)); width: 58px; height: 58px; font-size: 8px; }
+
+  #splash {
+    position: fixed; inset: 0; z-index: 30;
+    display: flex; align-items: center; justify-content: center;
+    background: #120e26; color: #ffd60a; font-size: 12px;
+  }
 </style>
 </head>
 <body>
-<canvas id="game" width="800" height="600"></canvas>
-<div id="splash">
-  <div>RICKSY TAXI LEAGUE</div>
-  <small>WARMING UP THE KOMBI...</small>
+<canvas id="game3d"></canvas>
+
+<div id="hud"></div>
+
+<div id="touch">
+  <div id="t-stick"><div id="t-knob"></div></div>
+  <div class="tbtn" id="t-jump">JUMP</div>
+  <div class="tbtn" id="t-boost">BOOST</div>
+  <div class="tbtn" id="t-cam">CAM</div>
+  <div class="tbtn" id="t-pause">II</div>
 </div>
-<script src="js_parts/01_constants.js"></script>
-<script src="js_parts/02_math.js"></script>
-<script src="js_parts/03_sprites.js"></script>
-<script src="js_parts/04_audio.js"></script>
-<script src="js_parts/05_world.js"></script>
-<script src="js_parts/06_sim.js"></script>
-<script src="js_parts/07_ai.js"></script>
-<script src="js_parts/08_events.js"></script>
-<script src="js_parts/09_render.js"></script>
-<script src="js_parts/10_input.js"></script>
-<script src="js_parts/11_camera.js"></script>
-<script src="js_parts/12_ui.js"></script>
-<script src="js_parts/13_main.js"></script>
+
+<div id="menu">
+  <h1>RICKSY TAXI LEAGUE 3D</h1>
+  <div class="sub">ROCKET-POWERED MINIBUS TAXIS &middot; KASI CAR SOCCER<br/>AERIALS &middot; FLIPS &middot; BOOST &middot; SUPERSONIC DEMOS</div>
+  <div class="btnrow">
+    <button data-diff="0">RELAXED</button>
+    <button data-diff="1">CASUAL</button>
+    <button data-diff="2" class="sel">SHARP</button>
+    <button data-diff="3">NEURAL</button>
+  </div>
+  <button id="btn-play">KICK OFF</button>
+  <div class="controls-hint">
+    <b>W/S</b> drive &nbsp; <b>A/D</b> steer &nbsp; <b>SPACE</b> jump (x2 = flip, hold direction to dodge) &nbsp; <b>SHIFT / LMB</b> boost<br/>
+    <b>Q/E</b> air-roll &nbsp; <b>B</b> ball cam / car cam &nbsp; <b>P</b> pause &nbsp; &mdash; phone: stick + JUMP/BOOST/CAM
+  </div>
+</div>
+
+<div id="over">
+  <h2 id="over-title">FULL TIME</h2>
+  <div id="over-stats" class="sub"></div>
+  <button id="btn-rematch" onclick="RTL3D.game.S.screen==='over' && location.reload()">REMATCH</button>
+  <button onclick="location.reload()">MENU</button>
+</div>
+
+<div id="splash">LOADING THE KOMBI...</div>
+
+<script src="vendor/three.min.js"></script>
 <script>
-  /* hide splash once the game boots */
-  window.addEventListener("rtl:booted", function () {
+  /* namespace */
+  var RTL3D = { VERSION: "2.0.0" };
+  window.RTL3D = RTL3D;
+  /* hide splash after game boots */
+  window.addEventListener("rtl3d:booted", function () {
     var s = document.getElementById("splash");
-    if (s) { s.style.opacity = "0"; setTimeout(function () { s.remove(); }, 450); }
+    if (s) { s.style.opacity = "0"; setTimeout(function () { s.remove(); }, 400); }
   });
+</script>
+<script src="js/rl_physics.js"></script>
+<script src="js/rl_ai.js"></script>
+<script src="js/rl_game.js"></script>
+<script>
+  /* flag touch devices */
+  if ("ontouchstart" in window && window.matchMedia("(pointer: coarse)").matches) {
+    document.body.classList.add("touch");
+  }
+  /* dispatch boot event on next tick after game module auto-boots */
+  setTimeout(function () { window.dispatchEvent(new Event("rtl3d:booted")); }, 300);
 </script>
 </body>
 </html>
