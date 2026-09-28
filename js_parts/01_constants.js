@@ -84,10 +84,13 @@ const RTL = {
   C.CAMS = ["CAR", "BALL", "TUNNEL"];
   /* RL-style chase cams: sq = vertical squash (low = pitch of the camera),
      anchorY = where the look point sits on screen. */
-  C.CAR_CAM = { lookAhead: 5, zoom: 26, refW: 1264, sq: 0.82, anchorY: 0.6 };
-  C.BALL_CAM = { zoom: 24, refW: 1264, sq: 0.8, anchorY: 0.76 };
+  C.CAR_CAM = { lookAhead: 5, zoom: 26, refW: 1264, sq: 0.82, anchorY: 0.62 };
+  C.BALL_CAM = { zoom: 24, refW: 1264, sq: 0.8, anchorY: 0.78 };
   C.TUNNEL_CAM = { zoom: 9, refW: 1264, sq: 0.5, rot: -Math.PI / 4 };
   C.CAM_SWITCH_COOLDOWN = 0.25;   // avoid double-toggles
+  C.PAN_DAMP = 2.3;               // pan base damping (lazy-follow, matches
+                                  // reference game's soft trailing pan);
+                                  // error-adaptive catch-up lives in 11_camera.js
 
   /* ---- Presentation ---- */
   C.PIXEL = 3;                    // base pixel scale (retro chunk)
