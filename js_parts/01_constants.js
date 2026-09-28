@@ -77,7 +77,7 @@ const RTL = {
   C.STANDS_DEPTH = 26;            // metres of stands drawn beyond boards
 
   /* ---- AI ---- */
-  C.AI_DIFFICULTIES = [" relaxed ", "casual", " sharp ", "neural"]; // displayed
+  C.AI_DIFFICULTIES = ["RELAXED", "CASUAL", "SHARP", "NEURAL"]; // displayed
   C.AI_NAMES = ["BOET", "TSHAMI", "BRA H", "UMNUZ"];
 
   /* ---- Cameras ---- */
