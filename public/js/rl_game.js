@@ -79,16 +79,45 @@ RTL3D.game = (function () {
       g.add(m);
     };
     mkWall(A.H, A.HEIGHT, x2, 0); mkWall(A.H, A.HEIGHT, -x2, 0);
-    // end walls split around goal mouth
+    // end walls split around goal mouth + goals + ad boards
     const sideW = (A.W - A.GOAL_W) / 2;
+    const goalMat = new THREE.MeshLambertMaterial({ color: 0xf0f0e8, transparent: true, opacity: 0.5 });
     for (const s of [1, -1]) {
       mkWall(sideW, A.HEIGHT, -(A.GOAL_W / 2 + sideW / 2), s * y2, 0);
       mkWall(sideW, A.HEIGHT, (A.GOAL_W / 2 + sideW / 2), s * y2, 0);
-      // goal frame + net box
-      const goalMat = new THREE.MeshLambertMaterial({ color: 0xf0f0e8, transparent: true, opacity: 0.5 });
+      // net box
       const net = new THREE.Mesh(new THREE.BoxGeometry(A.GOAL_W, A.GOAL_DEPTH, A.GOAL_H), goalMat);
       net.position.set(0, s * (y2 + A.GOAL_DEPTH / 2), A.GOAL_H / 2);
       g.add(net);
+      /* goal frame in the attacking team's colour: blue attacks +y, orange -y */
+      const fm = new THREE.MeshBasicMaterial({ color: s === 1 ? 0x3aa0ff : 0xff8a2a });
+      const bar = (w, h, x, yy, zz) => {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.3), fm);
+        m.position.set(x, yy, zz);
+        g.add(m);
+      };
+      bar(A.GOAL_W, 0.5, 0, s * y2, A.GOAL_H);          // crossbar
+      bar(0.5, A.GOAL_H, -A.GOAL_W / 2, s * y2, A.GOAL_H / 2);
+      bar(0.5, A.GOAL_H, A.GOAL_W / 2, s * y2, A.GOAL_H / 2);
+    }
+    /* advertising boards around the pitch (retro fake-SA brands) */
+    const adCols = [0xffd60a, 0x2ee66b, 0xff9f1c, 0x00e5ff, 0xff3d8b];
+    let adIdx = 0;
+    const mkAd = (x, y, ry) => {
+      const col = adCols[adIdx % adCols.length];
+      const board = new THREE.Mesh(new THREE.PlaneGeometry(10, 1.6), new THREE.MeshBasicMaterial({ color: 0x101820 }));
+      board.position.set(x, y, 1.4);
+      board.rotation.y = ry;
+      g.add(board);
+      const strip = new THREE.Mesh(new THREE.PlaneGeometry(9, 0.5), new THREE.MeshBasicMaterial({ color: col }));
+      strip.position.set(x, y, 1.7);
+      strip.rotation.y = ry;
+      g.add(strip);
+      adIdx++;
+    };
+    for (let i = 0; i < 5; i++) {
+      mkAd(-A.W / 2 + 12 + i * 16, -y2 - 1.2, 0);
+      mkAd(-A.W / 2 + 12 + i * 16, y2 + 1.2, Math.PI);
     }
     // ceiling
     const ceil = new THREE.Mesh(new THREE.PlaneGeometry(A.W, A.H), wallMat);
@@ -177,37 +206,50 @@ RTL3D.game = (function () {
     }
   }
 
-  /* ---------------- cameras ---------------- */
-  const cam = { pos: new THREE.Vector3(), look: new THREE.Vector3(), initialized: false };
+  /* ---------------- cameras (v3: STABLE, limited-rate) ---------------- */
+  const cam = { pos: new THREE.Vector3(), look: new THREE.Vector3(), yaw: 0, initialized: false };
+  const CAMC = { dist: 8.5, height: 4.6, maxYawRate: 2.2, posSmooth: 8, lookSmooth: 14 };
   function updateCamera(dt) {
     const me = cars.P1;
     if (!me) return;
-    const M = 0.9; // margin from walls
-    let targetPos, lookAt;
+    const M = 0.9;
+    let desiredYaw, dist, height, look;
+
     if (S.ballCam && ball) {
-      // camera behind car along car->ball axis, ball framed ahead
-      const dir = new THREE.Vector3().subVectors(me.pos, ball.pos); // ball->car
-      dir.z = 0;
-      if (dir.lengthSq() < 0.01) dir.set(Math.cos(me.yaw), Math.sin(me.yaw), 0);
-      dir.normalize();
-      const back = 6.5 + Math.min(3, me.pos.distanceTo(ball.pos) * 0.1);
-      targetPos = me.pos.clone().addScaledVector(dir, back).add(new THREE.Vector3(0, 0, 4.2));
-      lookAt = ball.pos.clone();
+      const dx = me.pos.x - ball.pos.x, dy = me.pos.y - ball.pos.y;
+      const ballDist = Math.hypot(dx, dy);
+      /* KEY STABILITY RULE: only re-aim when the ball is far enough that the
+         axis is meaningful. Up close, keep last yaw — this kills the wild
+         swinging when dribbling. */
+      if (ballDist > 2.5) desiredYaw = Math.atan2(dy, dx);
+      else desiredYaw = cam.yaw;
+      dist = CAMC.dist + Math.min(2.5, ballDist * 0.08);
+      height = CAMC.height;
+      look = ball.pos.clone();
     } else {
-      // car cam: behind car heading
-      const fwd = new THREE.Vector3(Math.cos(me.yaw), Math.sin(me.yaw), 0);
-      targetPos = me.pos.clone().addScaledVector(fwd, -7.2).add(new THREE.Vector3(0, 0, 4.4));
-      lookAt = me.pos.clone().addScaledVector(fwd, 6).add(new THREE.Vector3(0, 0, 0.8));
+      desiredYaw = me.yaw + Math.PI;      // sit behind the car
+      dist = 7.6; height = 4.4;
+      look = me.pos.clone().add(new THREE.Vector3(Math.cos(me.yaw) * 6, Math.sin(me.yaw) * 6, 0.8));
     }
-    /* clamp the TARGET inside the arena before damping (else damping keeps
-       dragging the camera back out through the wall) */
-    targetPos.x = Math.max(-A.W / 2 + M, Math.min(A.W / 2 - M, targetPos.x));
-    targetPos.y = Math.max(-A.H / 2 + M, Math.min(A.H / 2 - M, targetPos.y));
-    targetPos.z = Math.max(1.1, Math.min(A.HEIGHT - 0.8, targetPos.z));
-    if (!cam.initialized) { cam.pos.copy(targetPos); cam.initialized = true; }
-    const rate = 1 - Math.exp(-7 * dt);
-    cam.pos.lerp(targetPos, rate);
-    cam.look.lerp(lookAt, 1 - Math.exp(-10 * dt));
+
+    /* limited-rate yaw: camera can never whip around */
+    let d = desiredYaw - cam.yaw;
+    while (d > Math.PI) d -= Math.PI * 2;
+    while (d < -Math.PI) d += Math.PI * 2;
+    const maxStep = CAMC.maxYawRate * dt;
+    cam.yaw += Math.max(-maxStep, Math.min(maxStep, d));
+
+    const tx = me.pos.x + Math.cos(cam.yaw) * dist;
+    const ty = me.pos.y + Math.sin(cam.yaw) * dist;
+    const tz = me.pos.z + height;
+    const target = new THREE.Vector3(
+      Math.max(-A.W / 2 + M, Math.min(A.W / 2 - M, tx)),
+      Math.max(-A.H / 2 + M, Math.min(A.H / 2 - M, ty)),
+      Math.max(1.1, Math.min(A.HEIGHT - 0.8, tz))
+    );
+    if (!cam.initialized) { cam.pos.copy(target); cam.look.copy(look); cam.initialized = true; }
+    cam.pos.lerp(target, 1 - Math.exp(-CAMC.posSmooth * dt));
+    cam.look.lerp(look, 1 - Math.exp(-CAMC.lookSmooth * dt));
     camera.position.copy(cam.pos);
     camera.lookAt(cam.look);
   }
@@ -455,10 +497,15 @@ RTL3D.game = (function () {
     scene.add(ballMesh);
     buildPads();
 
-    // resize
+    // resize — RETRO PIXELATION: render at 1/3 resolution, upscale crisp
+    const PIXEL = 3;
     const resize = () => {
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      camera.aspect = window.innerWidth / window.innerHeight;
+      const w = window.innerWidth, h = window.innerHeight;
+      renderer.setPixelRatio(1);
+      renderer.setSize(Math.max(200, Math.floor(w / PIXEL)), Math.max(150, Math.floor(h / PIXEL)), false);
+      canvas3d().style.width = w + "px";
+      canvas3d().style.height = h + "px";
+      camera.aspect = w / h;
       camera.updateProjectionMatrix();
     };
     window.addEventListener("resize", resize);
