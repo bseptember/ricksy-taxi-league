@@ -4,3 +4,4 @@ dist/
 .DS_Store
 _tmp/
 _debug/
+.wrangler/
