@@ -31,10 +31,10 @@ RTL3D.game = (function () {
   /* ---------------- arena build ---------------- */
   function buildArena() {
     const g = new THREE.Group();
-    // pitch
+    // pitch — MeshBasicMaterial: arena floor always readable, retro flat look
     const pitch = new THREE.Mesh(
       new THREE.PlaneGeometry(A.W, A.H),
-      new THREE.MeshLambertMaterial({ color: 0x2f8f3f })
+      new THREE.MeshBasicMaterial({ color: 0x2f8f3f })
     );
     pitch.rotation.x = -Math.PI / 2;
     g.add(pitch);
@@ -42,7 +42,7 @@ RTL3D.game = (function () {
     for (let i = 0; i < 10; i += 2) {
       const stripe = new THREE.Mesh(
         new THREE.PlaneGeometry(A.W, A.H / 10),
-        new THREE.MeshLambertMaterial({ color: 0x2a8238 })
+        new THREE.MeshBasicMaterial({ color: 0x2a8238 })
       );
       stripe.rotation.x = -Math.PI / 2;
       stripe.position.y = -A.H / 2 + (i + 0.5) * A.H / 10;
@@ -69,8 +69,8 @@ RTL3D.game = (function () {
     }
     mkLine(circPts);
 
-    // walls (semi-transparent so cameras can see through when outside)
-    const wallMat = new THREE.MeshLambertMaterial({ color: 0x1c2a3a, transparent: true, opacity: 0.35, side: THREE.DoubleSide });
+    // walls — near-invisible from inside so the view is never blocked
+    const wallMat = new THREE.MeshLambertMaterial({ color: 0x1c2a3a, transparent: true, opacity: 0.14, side: THREE.DoubleSide, depthWrite: false });
     const mkWall = (w, h, x, y, ry) => {
       const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), wallMat);
       m.position.set(x, y, h / 2);
@@ -104,13 +104,13 @@ RTL3D.game = (function () {
       ramp.position.set(sx * (x2 - A.CORNER_R * 0.42), sy * (y2 - A.CORNER_R * 0.29), A.HEIGHT / 2);
       g.add(ramp);
     }
-    // floodlight poles for flavour
+    // floodlight poles for flavour (lamps OUTSIDE the arena, high)
     for (const sx of [1, -1]) for (const sy of [1, -1]) {
-      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 26, 6), new THREE.MeshLambertMaterial({ color: 0x8fa8c8 }));
-      pole.position.set(sx * (x2 + 3), sy * (y2 + 3), 13);
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 30, 6), new THREE.MeshLambertMaterial({ color: 0x8fa8c8 }));
+      pole.position.set(sx * (x2 + 6), sy * (y2 + 6), 15);
       g.add(pole);
-      const lamp = new THREE.Mesh(new THREE.BoxGeometry(4, 1.4, 0.8), new THREE.MeshBasicMaterial({ color: 0xfff2b0 }));
-      lamp.position.set(sx * (x2 + 3), sy * (y2 + 3), 26);
+      const lamp = new THREE.Mesh(new THREE.BoxGeometry(3.5, 1.2, 0.7), new THREE.MeshBasicMaterial({ color: 0xfff2b0 }));
+      lamp.position.set(sx * (x2 + 6), sy * (y2 + 6), 30);
       g.add(lamp);
     }
     return g;
@@ -182,6 +182,7 @@ RTL3D.game = (function () {
   function updateCamera(dt) {
     const me = cars.P1;
     if (!me) return;
+    const M = 0.9; // margin from walls
     let targetPos, lookAt;
     if (S.ballCam && ball) {
       // camera behind car along car->ball axis, ball framed ahead
@@ -189,23 +190,26 @@ RTL3D.game = (function () {
       dir.z = 0;
       if (dir.lengthSq() < 0.01) dir.set(Math.cos(me.yaw), Math.sin(me.yaw), 0);
       dir.normalize();
-      const back = 7.5 + Math.min(4, me.pos.distanceTo(ball.pos) * 0.12);
-      targetPos = me.pos.clone().addScaledVector(dir, back).add(new THREE.Vector3(0, 0, 3.1));
+      const back = 6.5 + Math.min(3, me.pos.distanceTo(ball.pos) * 0.1);
+      targetPos = me.pos.clone().addScaledVector(dir, back).add(new THREE.Vector3(0, 0, 4.2));
       lookAt = ball.pos.clone();
     } else {
       // car cam: behind car heading
       const fwd = new THREE.Vector3(Math.cos(me.yaw), Math.sin(me.yaw), 0);
-      targetPos = me.pos.clone().addScaledVector(fwd, -8.2).add(new THREE.Vector3(0, 0, 3.3));
-      lookAt = me.pos.clone().addScaledVector(fwd, 6).add(new THREE.Vector3(0, 0, 1));
+      targetPos = me.pos.clone().addScaledVector(fwd, -7.2).add(new THREE.Vector3(0, 0, 4.4));
+      lookAt = me.pos.clone().addScaledVector(fwd, 6).add(new THREE.Vector3(0, 0, 0.8));
     }
+    /* clamp the TARGET inside the arena before damping (else damping keeps
+       dragging the camera back out through the wall) */
+    targetPos.x = Math.max(-A.W / 2 + M, Math.min(A.W / 2 - M, targetPos.x));
+    targetPos.y = Math.max(-A.H / 2 + M, Math.min(A.H / 2 - M, targetPos.y));
+    targetPos.z = Math.max(1.1, Math.min(A.HEIGHT - 0.8, targetPos.z));
     if (!cam.initialized) { cam.pos.copy(targetPos); cam.initialized = true; }
-    const rate = 1 - Math.exp(-6 * dt);
+    const rate = 1 - Math.exp(-7 * dt);
     cam.pos.lerp(targetPos, rate);
-    cam.look.lerp(lookAt, 1 - Math.exp(-9 * dt));
+    cam.look.lerp(lookAt, 1 - Math.exp(-10 * dt));
     camera.position.copy(cam.pos);
     camera.lookAt(cam.look);
-    // keep camera inside arena-ish (above ground, below ceiling)
-    camera.position.z = Math.max(1.2, Math.min(A.HEIGHT - 0.5, camera.position.z));
   }
 
   /* ---------------- input ---------------- */
@@ -366,11 +370,12 @@ RTL3D.game = (function () {
       const c = cars[key], m = carMesh[key];
       m.visible = c.demoT <= 0;
       m.position.copy(c.pos);
-      m.rotation.set(-(c._pitch || 0), 0, -(c._roll || 0));
+      /* boxy taxi forward axis is +Z in my build? No: I built the body along Y.
+         three.js: rotation order YXZ, yaw around Y, then pitch around X. */
       m.rotation.order = "YXZ";
-      m.rotation.y = -c.yaw + Math.PI / 2;
-      m.rotation.x = -(c._pitch || 0);
-      m.rotation.z = (c._roll || 0);
+      m.rotation.y = -c.yaw;               // model forward = +Y
+      m.rotation.x = (c._pitch || 0) * 0.9;
+      m.rotation.z = (c._roll || 0) * 0.9;
       m.userData.flame.visible = c.boosting;
       if (m.userData.flame.visible) {
         m.userData.flame.scale.setScalar(0.8 + Math.random() * 0.5);
@@ -428,16 +433,18 @@ RTL3D.game = (function () {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x120e26);
-    scene.fog = new THREE.Fog(0x120e26, 120, 260);
     camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, 400);
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.55));
-    const sun = new THREE.DirectionalLight(0xfff2d0, 0.9);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+    const sun = new THREE.DirectionalLight(0xfff2d0, 1.4);
     sun.position.set(30, 40, 60);
     scene.add(sun);
-    const fill = new THREE.DirectionalLight(0x88aaff, 0.3);
+    const fill = new THREE.DirectionalLight(0x88aaff, 0.7);
     fill.position.set(-40, -30, 30);
     scene.add(fill);
+    const under = new THREE.DirectionalLight(0xffffff, 0.5);
+    under.position.set(0, 0, -50);
+    scene.add(under);
 
     scene.add(buildArena());
     cars = { P1: P.makeCar("blue", { x: 0, y: -20, yaw: Math.PI / 2 }), AI: P.makeCar("orange", { x: 0, y: 20, yaw: -Math.PI / 2 }) };
