@@ -76,6 +76,7 @@ function testSimBasics(RTL) {
   ];
   const ball = { x: 34, y: 52.5, z: 0.35, vx: 0, vy: 0, vz: 0, spin: 0, lastTouch: null, guides: [] };
   RTL.sim.kickoff(match, cars, ball);
+  match.state = "play"; // (main leaves countdown after 3s; test skips it)
   ok(Math.abs(ball.x - 34) < 0.01 && Math.abs(ball.y - 52.5) < 0.01, "kickoff centres ball");
   ok(cars[0].y < 40 && cars[1].y > 65, "cars on their own halves");
   // drive forward: throttle 1 for 2 seconds
@@ -107,15 +108,16 @@ function testBallPhysics(RTL) {
 function testGoalDetection(RTL) {
   section("sim: goal detection + events");
   const match = { mode: "match", score: { blue: 0, orange: 0 }, t: 250, state: "play", stateT: 0, overtime: false, seed: 3, kickoffFor: "blue", events: [] };
+  // Blue attacks +Y (goal at y=105). Car heads +Y, ball ahead moving +Y fast.
   const cars = [
-    { id: "P1", team: "blue", x: 34, y: 60, z: 0, vx: 0, vy: -30, vz: 0, heading: -Math.PI / 2, angVel: 0, boost: 100, boostHeld: false, jumping: false, jumpT: 0, airTime: 0, canJump: true, canFlip: true, flip: { active: false, t: 0, dx: 0, dy: 0 }, carrying: false, carryCd: 0, demo: { active: false, t: 0 }, respawnT: 0, onGround: true, wheelspin: 0 },
-    { id: "AI", team: "orange", x: 34, y: 45, z: 0, vx: 0, vy: 0, vz: 0, heading: Math.PI / 2, angVel: 0, boost: 34, boostHeld: false, jumping: false, jumpT: 0, airTime: 0, canJump: true, canFlip: true, flip: { active: false, t: 0, dx: 0, dy: 0 }, carrying: false, carryCd: 0, demo: { active: false, t: 0 }, respawnT: 0, onGround: true, wheelspin: 0 },
+    { id: "P1", team: "blue", x: 34, y: 55, z: 0, vx: 0, vy: 20, vz: 0, heading: Math.PI / 2, angVel: 0, boost: 100, boostHeld: false, jumping: false, jumpT: 0, airTime: 0, canJump: true, canFlip: true, flip: { active: false, t: 0, dx: 0, dy: 0 }, carrying: false, carryCd: 0, demo: { active: false, t: 0 }, respawnT: 0, onGround: true, wheelspin: 0 },
+    { id: "AI", team: "orange", x: 34, y: 45, z: 0, vx: 0, vy: 0, vz: 0, heading: -Math.PI / 2, angVel: 0, boost: 34, boostHeld: false, jumping: false, jumpT: 0, airTime: 0, canJump: true, canFlip: true, flip: { active: false, t: 0, dx: 0, dy: 0 }, carrying: false, carryCd: 0, demo: { active: false, t: 0 }, respawnT: 0, onGround: true, wheelspin: 0 },
   ];
-  const ball = { x: 34, y: 55, z: 0.35, vx: 0, vy: -40, vz: 0, spin: 0, lastTouch: "P1", guides: [] };
+  const ball = { x: 34, y: 60, z: 0.35, vx: 0, vy: 40, vz: 0, spin: 0, lastTouch: "P1", guides: [] };
   const rng = RTL.mathx.rngFrom(9);
   const inputs = { P1: { throttle: 0, steer: 0, boost: false, jump: false, shoot: false, carry: false, brake: false }, AI: { throttle: 0, steer: 0, boost: false, jump: false, shoot: false, carry: false, brake: false } };
   let sawGoal = false;
-  for (let i = 0; i < 300 && !sawGoal; i++) {
+  for (let i = 0; i < 600 && !sawGoal; i++) {
     RTL.sim.step(match, cars, ball, inputs, 1 / 120, rng);
     sawGoal = match.events.some((e) => e.type === "goal" && e.team === "blue");
   }
@@ -166,31 +168,33 @@ function testAIBehaves(RTL) {
 
 function testFullMatchSim(RTL) {
   section("sim: AI vs AI full match runs to a result");
-  const match = { mode: "match", score: { blue: 0, orange: 0 }, t: 120, state: "play", stateT: 0, overtime: false, seed: 777, kickoffFor: "orange", events: [] };
+  const match = { mode: "match", score: { blue: 0, orange: 0 }, t: 300, state: "play", stateT: 0, overtime: false, seed: 777, kickoffFor: "orange", events: [] };
   const mkCar = (id, team, x, y, heading) => ({ id, team, x, y, z: 0, vx: 0, vy: 0, vz: 0, heading, angVel: 0, boost: 34, boostHeld: false, jumping: false, jumpT: 0, airTime: 0, canJump: true, canFlip: true, flip: { active: false, t: 0, dx: 0, dy: 0 }, carrying: false, carryCd: 0, demo: { active: false, t: 0 }, respawnT: 0, onGround: true, wheelspin: 0 });
-  const cars = [mkCar("P1", "blue", 34, 40, Math.PI / 2), mkCar("AI", "orange", 34, 65, -Math.PI / 2)];
+  const cars = [mkCar("P1", "blue", 34, 38, Math.PI / 2), mkCar("AI", "orange", 34, 67, -Math.PI / 2)];
   const ball = { x: 34, y: 52.5, z: 0.35, vx: 0, vy: 0, vz: 0, spin: 0, lastTouch: null, guides: [] };
   const rng = RTL.mathx.rngFrom(match.seed);
-  const emptyIn = { throttle: 0, steer: 0, boost: false, jump: false, shoot: false, carry: false, brake: false };
-  let goals = 0, steps = 0, maxEvents = 0;
-  while (match.t > 0 && steps < 120 * 130) {
-    const p1 = RTL.ai.think(match, cars, ball, 1, rng, RTL.C.FIXED_DT);
+  let goals = 0, steps = 0, shots = 0, kicks = 0;
+  while (match.t > 0 && steps < 120 * 310) {
+    const p1 = RTL.ai.think(match, cars, ball, 2, rng, RTL.C.FIXED_DT);
     const ai = RTL.ai.think(match, cars, ball, 2, rng, RTL.C.FIXED_DT);
     RTL.sim.step(match, cars, ball, { P1: p1, AI: ai }, RTL.C.FIXED_DT, rng);
     steps++;
     if (match.state === "goal") {
       goals++;
-      // fast-forward the goal freeze
       match.stateT = RTL.C.GOAL_FREEZE_SECONDS;
     }
-    maxEvents = Math.max(maxEvents, match.events.length);
+    for (const e of match.events) {
+      if (e.type === "shot") shots++;
+      if (e.type === "kick" && e.hard) kicks++;
+    }
     if (match.events.length > 0) match.events.length = 0; // drain like main loop would
-    if (match.t > 0 && match.state === "countdown") match.stateT = 99; // skip countdowns
+    if (match.t > 0 && match.state === "countdown") match.stateT = 0.99; // skip countdowns
+    if (match.state === "over") break;
   }
-  console.log(`    (sim ran ${steps} steps, ${goals} goals, final ${match.score.blue}-${match.score.orange}, t=${match.t.toFixed(1)})`);
+  console.log(`    (sim ${steps} steps, goals=${goals}, shots=${shots}, hardKicks=${kicks}, final ${match.score.blue}-${match.score.orange}, t=${match.t.toFixed(0)})`);
   ok(steps > 1000, "match ran a long time without exploding");
   ok(Number.isFinite(cars[0].x) && Number.isFinite(ball.x), "no NaN leaked into state");
-  ok(goals >= 0, "goal counting works");
+  ok(goals >= 1 || shots >= 3, "AI match produces at least a goal or real shots (got " + goals + " goals, " + shots + " shots)");
 }
 
 /* ================= RUN ================= */

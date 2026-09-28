@@ -51,7 +51,7 @@ RTL.camera = (function (C, m) {
     }
 
     /* iso screen anchor: project look point, offset so it sits above centre */
-    const pr = m.project(look.x, look.y, look.z, { ox: 0, oy: 0, zoom: 1 });
+    const pr = m.iso(look.x, look.y, look.z);
     cam.zoom = p.zoom * (cam.mode === "TUNNEL" ? 1 : 1);
     const targetZoom = p.zoom * (1 - m.clamp((Math.hypot(target.vx, target.vy) - 20) / 60, 0, 0.18));
     cam.zoom = m.damp(cam.zoom, targetZoom, 4, dt);
