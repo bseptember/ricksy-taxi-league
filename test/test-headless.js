@@ -197,6 +197,29 @@ function testFullMatchSim(RTL) {
   ok(goals >= 1 || shots >= 3, "AI match produces at least a goal or real shots (got " + goals + " goals, " + shots + " shots)");
 }
 
+/* Assisted (moveVec) drive: input must actually move the car. Regression for
+   the tank-recompose stomp: vx/vy written by the Assisted branch were rebuilt
+   from the PRE-step along/lat snapshot, pinning the car at rest forever. */
+function testAssistedDrive(RTL) {
+  section("sim: assisted moveVec drive");
+  const C = RTL.C;
+  const mkCar = (id, team, x, y, h) => ({ id, team, x, y, z: 0, vx: 0, vy: 0, vz: 0,
+    heading: h, angVel: 0, boost: C.START_BOOST, boostHeld: false, jumping: false,
+    jumpT: 0, airTime: 0, canJump: true, canFlip: true, flip: { active: false, t: 0, dx: 0, dy: 0 },
+    carrying: false, carryCd: 0, carryT: 0, demo: { active: false, t: 0 }, respawnT: 0,
+    onGround: true, wheelspin: 0 });
+  const cars = [mkCar("P1", "blue", 34, 38, Math.PI / 2), mkCar("AI", "orange", 34, 67, -Math.PI / 2)];
+  const ball = { x: 34, y: 52.5, z: C.BALL_RADIUS, vx: 0, vy: 0, vz: 0, spin: 0, lastTouch: null, guides: [] };
+  const match = { mode: "free", state: "play", events: [], overtime: false, seed: 1 };
+  const inp = { P1: { throttle: 0, steer: 0, boost: false, jumpEdge: false, shootEdge: false,
+    carryEdge: false, brake: false, fly: false, moveVec: { x: 0, y: 1 } }, AI: {} };
+  for (let i = 0; i < 120; i++) RTL.sim.step(match, cars, ball, inp, C.FIXED_DT, Math.random);
+  ok(cars[0].vy > 0.9 * C.CAR_MAX_SPEED, "assisted W reaches top speed (vy=" + cars[0].vy.toFixed(1) + ")");
+  ok(cars[0].y > 38 + 8, "assisted car actually travels (dy=" + (cars[0].y - 38).toFixed(1) + ")");
+  ok(Math.abs(cars[0].heading - Math.PI / 2) < 0.01, "assisted car faces push direction");
+  ok(Number.isFinite(cars[0].x) && Number.isFinite(ball.x), "no NaN in assisted drive");
+}
+
 /* ================= RUN ================= */
 const RTL = loadEngine();
 console.log("RICKSY TAXI LEAGUE headless harness — RTL v" + RTL.VERSION);
@@ -208,6 +231,7 @@ testGoalDetection(RTL);
 testCarryAndShot(RTL);
 testAIBehaves(RTL);
 testFullMatchSim(RTL);
+testAssistedDrive(RTL);
 
 console.log("\n==============================");
 console.log(`PASSED: ${passed}  FAILED: ${failed}`);

@@ -47,17 +47,36 @@ RTL.camera = (function (C, m) {
       lookZ = 0;
       anchorY = view.h * 0.52;
     } else {
-      /* CAR cam: forward direction is up-screen */
-      const hd = spd > 2 ? Math.atan2(target.vy, target.vx) : target.heading;
+      /* CAR cam: the car's HEADING is up-screen (not velocity — a wall bounce
+         reverses velocity and would whip the camera; heading is continuous) */
+      const hd = target.heading;
       rot = -Math.PI / 2 - hd;
       const la = (p.lookAhead || 5) * m.clamp(spd / 18, 0, 1.4);
-      lookX = target.x + Math.cos(hd) * la;
-      lookY = target.y + Math.sin(hd) * la;
+      /* ball-bias: lean the look point toward a far ball (bounded, smooth via
+         the ox/oy damp below) so it stays framed at long range */
+      let bx = 0, by = 0, bdl = 0;
+      if (ball) {
+        const bdx = ball.x - target.x, bdy = ball.y - target.y;
+        bdl = Math.hypot(bdx, bdy);
+        const bias = m.clamp((bdl - 18) / 40, 0, 1) * 0.5;
+        bx = bdx * bias; by = bdy * bias;
+      }
+      lookX = target.x + Math.cos(hd) * la + bx;
+      lookY = target.y + Math.sin(hd) * la + by;
       lookZ = 1 + Math.min(2, target.z);
       anchorY = view.h * (p.anchorY || 0.6);
       const adapt = m.clamp(view.w / (p.refW || 1264), 0.55, 1.6);
-      const tz = p.zoom * adapt * (1 - m.clamp((spd - 20) / 60, 0, 0.18));
-      cam.zoom = m.damp(cam.zoom || tz, tz, 4, dt);
+      /* breathing zoom: pull out gently as the BALL gets far so it stays on
+         screen (his game: zoom eases out with ball distance, never jumps);
+         hard cap guarantees car + ball both fit at corner-to-corner range */
+      const bd = ball ? bdl : 0;
+      const outF = m.clamp(1 - (bd - 14) / 60, 0.5, 1);
+      const cap = (view.h * 0.62) / ((bd + 2) * sq);
+      const tz = Math.min(
+        p.zoom * adapt * outF * (1 - m.clamp((spd - 20) / 60, 0, 0.1)),
+        cap
+      );
+      cam.zoom = m.damp(cam.zoom || tz, tz, 2.5, dt);
     }
 
     cam.sq = sq;

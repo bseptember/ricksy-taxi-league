@@ -325,6 +325,12 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
           audio.music("tense");
           audio.play("whistle");
           match.events.push({ type: "whistle" });
+        } else {
+          /* overtime expired still tied: golden goal window is over — settle
+             as a draw instead of running the clock forever at 0:00 */
+          match.t = 0;
+          endMatch();
+          return;
         }
       }
       sim.step(match, cars, ball, { P1: p1, AI: inputs.AI }, dt, rng);

@@ -72,10 +72,14 @@ RTL.sim = (function (C, m, W) {
     const fx = Math.cos(car.heading), fy = Math.sin(car.heading);
     let along = car.vx * fx + car.vy * fy;             // signed forward speed
     let latX = car.vx - fx * along, latY = car.vy - fy * along;
+    /* ASSISTED branches write vx/vy directly; the tank recompose below must
+       not stomp them (it rebuilds from the PRE-step along/lat snapshot). */
+    let assistedStep = false;
 
     if (car.onGround) {
       /* --- ASSISTED (moveVec): screen-directional, "push where you want to go" --- */
       if (inp.moveVec) {
+        assistedStep = true;
         const mvx = inp.moveVec.x, mvy = inp.moveVec.y;
         const ml = Math.hypot(mvx, mvy);
         if (ml > 0.05) {
@@ -154,6 +158,7 @@ RTL.sim = (function (C, m, W) {
       car.jumping = false;
       /* Assisted in air: steer velocity toward stick direction (air control) */
       if (inp.moveVec) {
+        assistedStep = true;
         const mvx = inp.moveVec.x, mvy = inp.moveVec.y;
         const ml = Math.hypot(mvx, mvy);
         if (ml > 0.05) {
@@ -191,9 +196,12 @@ RTL.sim = (function (C, m, W) {
       }
     }
 
-    /* recompose horizontal velocity */
-    car.vx = fx * along + latX;
-    car.vy = fy * along + latY;
+    /* recompose horizontal velocity (tank path only — Assisted writes vx/vy
+       directly and must keep them) */
+    if (!assistedStep) {
+      car.vx = fx * along + latX;
+      car.vy = fy * along + latY;
+    }
 
     /* --- gravity + integrate --- */
     car.vz -= C.GRAVITY * dt;
