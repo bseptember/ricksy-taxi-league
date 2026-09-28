@@ -216,23 +216,34 @@ RTL3D.physics = (function () {
     }
 
     /* --- walls --- */
-    wallCollide(c, CAR.W / 2);
+    wallCollide(c, CAR.W / 2, true);
 
     /* supersonic flag */
     c.supersonic = c.vel.length() > 0.92 * T.MAX_BOOST_SPEED;
   }
 
-  function wallCollide(body, radius) {
+  function wallCollide(body, radius, isCar) {
     const A = ARENA;
     let hit = null;
-    const inGoalX = Math.abs(body.pos.x) < A.GOAL_W / 2 - 0.4;
+    // Cars are BLOCKED at the goal line (my nets are solid boxes they can't
+    // enter — only the ball passes through and scores). The `isCar` flag
+    // keeps cars out of the net geometry entirely.
+    const mouthOpen = !isCar;
+    const inGoalX = Math.abs(body.pos.x) < A.GOAL_W / 2 - radius;
     // side walls x
     if (body.pos.x > A.W / 2 - radius) { body.pos.x = A.W / 2 - radius; hit = hit || new V(); hit.x = -1; }
     else if (body.pos.x < -A.W / 2 + radius) { body.pos.x = -A.W / 2 + radius; hit = hit || new V(); hit.x = 1; }
-    // end walls y (open in goal mouth)
-    if (body.pos.y > A.H / 2 - radius && !(inGoalX && body.pos.z < A.GOAL_H)) {
+    // end walls y — cars: blocked across the FULL width near the mouth (they
+    // can't fit inside the goal), with a small ledge before the frame. Ball:
+    // only the mouth is open.
+    const nearMouth = Math.abs(body.pos.x) < A.GOAL_W / 2 + radius + 0.4;
+    if (isCar && nearMouth) {
+      // solid wall for cars even inside the mouth strip
+      if (body.pos.y > A.H / 2 - radius) { body.pos.y = A.H / 2 - radius; hit = hit || new V(); hit.y = -1; }
+      else if (body.pos.y < -A.H / 2 + radius) { body.pos.y = -A.H / 2 + radius; hit = hit || new V(); hit.y = 1; }
+    } else if (body.pos.y > A.H / 2 - radius && !(mouthOpen && inGoalX && body.pos.z < A.GOAL_H)) {
       body.pos.y = A.H / 2 - radius; hit = hit || new V(); hit.y = -1;
-    } else if (body.pos.y < -A.H / 2 + radius && !(inGoalX && body.pos.z < A.GOAL_H)) {
+    } else if (body.pos.y < -A.H / 2 + radius && !(mouthOpen && inGoalX && body.pos.z < A.GOAL_H)) {
       body.pos.y = -A.H / 2 + radius; hit = hit || new V(); hit.y = 1;
     }
     // ceiling

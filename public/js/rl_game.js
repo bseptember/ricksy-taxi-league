@@ -100,24 +100,24 @@ RTL3D.game = (function () {
       bar(0.5, A.GOAL_H, -A.GOAL_W / 2, s * y2, A.GOAL_H / 2);
       bar(0.5, A.GOAL_H, A.GOAL_W / 2, s * y2, A.GOAL_H / 2);
     }
-    /* advertising boards around the pitch (retro fake-SA brands) */
+    /* advertising boards around the pitch — clearly OUTSIDE the field, low */
     const adCols = [0xffd60a, 0x2ee66b, 0xff9f1c, 0x00e5ff, 0xff3d8b];
     let adIdx = 0;
     const mkAd = (x, y, ry) => {
       const col = adCols[adIdx % adCols.length];
-      const board = new THREE.Mesh(new THREE.PlaneGeometry(10, 1.6), new THREE.MeshBasicMaterial({ color: 0x101820 }));
-      board.position.set(x, y, 1.4);
+      const board = new THREE.Mesh(new THREE.PlaneGeometry(10, 1.4), new THREE.MeshBasicMaterial({ color: 0x101820 }));
+      board.position.set(x, y, 0.7);
       board.rotation.y = ry;
       g.add(board);
-      const strip = new THREE.Mesh(new THREE.PlaneGeometry(9, 0.5), new THREE.MeshBasicMaterial({ color: col }));
-      strip.position.set(x, y, 1.7);
+      const strip = new THREE.Mesh(new THREE.PlaneGeometry(9, 0.4), new THREE.MeshBasicMaterial({ color: col }));
+      strip.position.set(x, y, 1.0);
       strip.rotation.y = ry;
       g.add(strip);
       adIdx++;
     };
     for (let i = 0; i < 5; i++) {
-      mkAd(-A.W / 2 + 12 + i * 16, -y2 - 1.2, 0);
-      mkAd(-A.W / 2 + 12 + i * 16, y2 + 1.2, Math.PI);
+      mkAd(-A.W / 2 + 12 + i * 16, -y2 - 3.2, 0);
+      mkAd(-A.W / 2 + 12 + i * 16, y2 + 3.2, Math.PI);
     }
     // ceiling
     const ceil = new THREE.Mesh(new THREE.PlaneGeometry(A.W, A.H), wallMat);
@@ -208,7 +208,7 @@ RTL3D.game = (function () {
 
   /* ---------------- cameras (v3: STABLE, limited-rate) ---------------- */
   const cam = { pos: new THREE.Vector3(), look: new THREE.Vector3(), yaw: 0, initialized: false };
-  const CAMC = { dist: 8.5, height: 4.6, maxYawRate: 2.2, posSmooth: 8, lookSmooth: 14 };
+  const CAMC = { dist: 8.5, height: 6.2, maxYawRate: 2.2, posSmooth: 8, lookSmooth: 14, lookCarBias: 0.38 };
   function updateCamera(dt) {
     const me = cars.P1;
     if (!me) return;
@@ -225,7 +225,9 @@ RTL3D.game = (function () {
       else desiredYaw = cam.yaw;
       dist = CAMC.dist + Math.min(2.5, ballDist * 0.08);
       height = CAMC.height;
-      look = ball.pos.clone();
+      /* look: mostly the ball, biased toward the car so BOTH car and ball stay
+         in frame (prevents the car sliding off the bottom of the screen) */
+      look = ball.pos.clone().lerp(me.pos, CAMC.lookCarBias);
     } else {
       desiredYaw = me.yaw + Math.PI;      // sit behind the car
       dist = 7.6; height = 4.4;
@@ -283,15 +285,15 @@ RTL3D.game = (function () {
   /* ---------------- match flow ---------------- */
   function kickoff() {
     const yBack = A.H / 2 - 26;
-    cars.P1.pos.set(-2.5, -yBack, P.CAR.REST_Z); cars.P1.yaw = -Math.PI / 2 + Math.PI; // face +y
-    cars.P1.yaw = Math.atan2(A.H / 2 - cars.P1.pos.y, 0 - cars.P1.pos.x) - Math.PI / 2 + Math.PI / 2;
-    cars.P1.yaw = Math.atan2(0 - cars.P1.pos.y, 0 - cars.P1.pos.x) * 0 + Math.PI / 2 * 0 + (Math.PI / 2) * 0 + 0;
-    cars.P1.yaw = Math.PI / 2 * 0 + (Math.atan2(0 - cars.P1.pos.y, 0 - cars.P1.pos.x));
+    /* P1 spawns in -y half and FACES +Y (toward the ball and the enemy goal).
+       Blue attacks +y. yaw = PI/2 means forward = +y in this engine. */
+    cars.P1.pos.set(-2.5, -yBack, P.CAR.REST_Z);
+    cars.P1.yaw = Math.PI / 2;
     cars.P1.vel.set(0, 0, 0); cars.P1.onGround = true; cars.P1.hasJump = true; cars.P1.hasFlip = true;
     cars.P1.demoT = 0; cars.P1.boost = 33.3; cars.P1._pitch = 0; cars.P1._roll = 0;
     cars.P1.basis = P.basisFromYaw(cars.P1.yaw);
     cars.AI.pos.set(2.5, yBack, P.CAR.REST_Z);
-    cars.AI.yaw = Math.atan2(0 - cars.AI.pos.y, 0 - cars.AI.pos.x);
+    cars.AI.yaw = -Math.PI / 2;          // faces -y toward the ball
     cars.AI.vel.set(0, 0, 0); cars.AI.onGround = true; cars.AI.hasJump = true; cars.AI.hasFlip = true;
     cars.AI.demoT = 0; cars.AI.boost = 33.3; cars.AI._pitch = 0; cars.AI._roll = 0;
     cars.AI.basis = P.basisFromYaw(cars.AI.yaw);
@@ -617,7 +619,16 @@ RTL3D.game = (function () {
     renderer.render(scene, camera);
   }
 
-  return { boot, S };
+  return { boot, S, _qa: function () {
+    /* debug/QA: live positions (used by automated play-testing) */
+    return {
+      p1: { x: cars.P1.pos.x, y: cars.P1.pos.y, z: cars.P1.pos.z, yaw: cars.P1.yaw, boost: cars.P1.boost, demo: cars.P1.demoT },
+      ai: { x: cars.AI.pos.x, y: cars.AI.pos.y, z: cars.AI.pos.z },
+      ball: { x: ball.pos.x, y: ball.pos.y, z: ball.pos.z },
+      cam: { x: camera.position.x, y: camera.position.y, z: camera.position.z },
+      events: S.events.length,
+    };
+  } };
 })();
 
 /* boot when ready */
