@@ -54,11 +54,18 @@ RTL.mathx = (function () {
     return { u: rx, v: ry * ISO_Y_SQUASH - z };
   }
 
-  /** convenience: full transform incl. camera. cam = {ox, oy, zoom} in screen px. */
+  /** convenience: full transform incl. camera. cam = {ox, oy, zoom, rot?, sq?}.
+      rot = world yaw (RL chase cams rotate with the car/ball axis);
+      defaults reproduce the classic -45deg iso look. */
   function project(x, y, z, cam, out) {
-    const p = iso(x, y, z);
-    const sx = cam.ox + p.u * cam.zoom;
-    const sy = cam.oy + p.v * cam.zoom;
+    const rot = cam && cam.rot != null ? cam.rot : -Math.PI / 4;
+    const sq = cam && cam.sq != null ? cam.sq : ISO_Y_SQUASH;
+    const c = Math.cos(rot), s = Math.sin(rot);
+    const rx = x * c - y * s;
+    const ry = x * s + y * c;
+    const zm = cam ? cam.zoom : 1;
+    const sx = (cam ? cam.ox : 0) + rx * zm;
+    const sy = (cam ? cam.oy : 0) + ry * sq * zm - z * zm;
     if (out) { out.x = sx; out.y = sy; return out; }
     return { x: sx, y: sy };
   }

@@ -291,7 +291,7 @@ RTL.render = (function (C, m, W, S) {
     const frame = car.onGround ? Math.floor(car.wheelspin) % 2 : 2;
     S.draw(ctx, name, pr.x, pr.y + sc, {
       frame, scale: sc,
-      flip: Math.cos(car.heading) < 0,
+      flip: Math.cos(car.heading + (cam.rot != null ? cam.rot : -Math.PI / 4)) < 0,
     });
     /* boost flame */
     if (car.boostHeld) {

@@ -178,7 +178,7 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
     if (!first) audio.play("whistle");
     /* load-shedding flicker on some kickoffs (deterministic per seed) */
     S.lightFlicker = (Math.floor(m.hash(match.seed) * 3) === 0) ? 0.55 : 1;
-    cam.snap(camState, cars[0], ball, 1 / 60);
+    cam.snap(camState, cars[0], ball, 1 / 60, { w: canvas.width, h: canvas.height });
   }
 
   function endMatch() {

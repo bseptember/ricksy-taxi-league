@@ -82,9 +82,11 @@ const RTL = {
 
   /* ---- Cameras ---- */
   C.CAMS = ["CAR", "BALL", "TUNNEL"];
-  C.CAR_CAM = { dist: 17, pitch: 0.62, height: 8.5, lookAhead: 4.5, zoom: 22, refW: 1264 };
-  C.BALL_CAM = { dist: 15.5, pitch: 0.58, height: 8.0, lookAhead: 0, zoom: 20, refW: 1264 };
-  C.TUNNEL_CAM = { dist: 46, pitch: 0.5, height: 30, lookAhead: 0, zoom: 9, refW: 1264 };
+  /* RL-style chase cams: sq = vertical squash (low = pitch of the camera),
+     anchorY = where the look point sits on screen. */
+  C.CAR_CAM = { lookAhead: 5, zoom: 26, refW: 1264, sq: 0.82, anchorY: 0.6 };
+  C.BALL_CAM = { zoom: 24, refW: 1264, sq: 0.8, anchorY: 0.76 };
+  C.TUNNEL_CAM = { zoom: 9, refW: 1264, sq: 0.5, rot: -Math.PI / 4 };
   C.CAM_SWITCH_COOLDOWN = 0.25;   // avoid double-toggles
 
   /* ---- Presentation ---- */

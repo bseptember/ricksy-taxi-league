@@ -1,12 +1,15 @@
 /* ==========================================================================
-   RICKSY TAXI LEAGUE — 11_camera.js
-   CAR cam (follow car heading + look-ahead), BALL cam (always frames ball),
-   TUNNEL cam (high wide tactical). Smooth damping, zoom by speed.
+   RICKSY TAXI LEAGUE — 11_camera.js  (v2: Rocket-League-style chase cams)
+   CAR cam: camera locked behind the car's heading, forward = up-screen,
+            car sits low in frame, look-ahead at speed.
+   BALL cam: camera on the ball→car axis (ball "up" the screen, car at the
+             bottom), like RL ball cam. Adaptive zoom keeps far balls on screen.
+   TUNNEL: high tactical iso (classic view).
+   The renderer honours cam.rot (world yaw) and cam.sq (vertical squash = pitch).
    ========================================================================== */
 "use strict";
 
 RTL.camera = (function (C, m) {
-  const mode = { current: "CAR" }; // holds current mode; single source of truth
   let switchCd = 0;
 
   function preset(modeName) {
@@ -15,55 +18,56 @@ RTL.camera = (function (C, m) {
     return C.CAR_CAM;
   }
 
-  /** Which team attacks +Y? blue attacks y=105 (+Y). Return signed attack dir. */
-  function attackDir(team) { return team === "blue" ? 1 : -1; }
-
-  /**
-   * Update camera. cam = {ox, oy, zoom, mode, shakeT, shakeAmp}
-   * target = player car; ball = ball; dt seconds.
-   */
   function update(cam, target, ball, dt, view) {
     switchCd = Math.max(0, switchCd - dt);
     const p = preset(cam.mode);
-    let look = null;
+    let rot, sq = p.sq || 0.5, lookX, lookY, lookZ, anchorY;
+    const spd = Math.hypot(target.vx, target.vy);
 
     if (cam.mode === "BALL" && ball) {
-      /* ball cam: camera sits opposite the ball relative to the car, so the
-         ball stays centre-screen. Look target = ball. */
-      const dx = ball.x - target.x, dy = ball.y - target.y;
-      const bl = Math.hypot(dx, dy) || 1;
-      const bx = target.x - (dx / bl) * p.dist;
-      const by = target.y - (dy / bl) * p.dist;
-      look = { x: ball.x, y: ball.y, z: Math.max(1.2, ball.z) };
-      cam.tx = bx; cam.ty = by;
+      /* camera yaw = along the ball→car axis so the ball is centred horizontally */
+      const dx = target.x - ball.x, dy = target.y - ball.y;
+      if (Math.hypot(dx, dy) > 0.5) cam._yaw = Math.atan2(dy, dx);
+      rot = Math.PI / 2 - (cam._yaw || 0);
+      /* adaptive zoom: pull out when the ball is far so it stays in frame */
+      const bl = Math.max(6, Math.hypot(ball.x - target.x, ball.y - target.y));
+      const cap = (view.h * 0.78) / (bl * sq);
+      const adapt = m.clamp(view.w / (p.refW || 1264), 0.55, 1.6);
+      const tz = Math.min(p.zoom * adapt, cap);
+      cam.zoom = m.damp(cam.zoom || tz, tz, 3, dt);
+      lookX = target.x; lookY = target.y; lookZ = target.z;
+      anchorY = view.h * (p.anchorY || 0.76);
+    } else if (cam.mode === "TUNNEL") {
+      rot = (p.rot != null) ? p.rot : -Math.PI / 4;
+      const adapt = m.clamp(view.w / (p.refW || 1264), 0.55, 1.6);
+      cam.zoom = m.damp(cam.zoom || p.zoom * adapt, p.zoom * adapt, 3, dt);
+      lookX = ball ? (target.x + ball.x) / 2 : target.x;
+      lookY = ball ? (target.y + ball.y) / 2 : target.y;
+      lookZ = 0;
+      anchorY = view.h * 0.52;
     } else {
-      /* car cam: look ahead of the car along its velocity/heading */
-      const sp = Math.hypot(target.vx, target.vy);
-      const la = p.lookAhead * m.clamp(sp / 18, 0, 1.4);
-      const hd = sp > 2 ? Math.atan2(target.vy, target.vx) : target.heading;
-      look = {
-        x: target.x + Math.cos(hd) * la,
-        y: target.y + Math.sin(hd) * la,
-        z: 1.0 + Math.min(2, target.z),
-      };
-      cam.tx = target.x - Math.cos(hd) * p.dist;
-      cam.ty = target.y - Math.sin(hd) * p.dist;
+      /* CAR cam: forward direction is up-screen */
+      const hd = spd > 2 ? Math.atan2(target.vy, target.vx) : target.heading;
+      rot = -Math.PI / 2 - hd;
+      const la = (p.lookAhead || 5) * m.clamp(spd / 18, 0, 1.4);
+      lookX = target.x + Math.cos(hd) * la;
+      lookY = target.y + Math.sin(hd) * la;
+      lookZ = 1 + Math.min(2, target.z);
+      anchorY = view.h * (p.anchorY || 0.6);
+      const adapt = m.clamp(view.w / (p.refW || 1264), 0.55, 1.6);
+      const tz = p.zoom * adapt * (1 - m.clamp((spd - 20) / 60, 0, 0.18));
+      cam.zoom = m.damp(cam.zoom || tz, tz, 4, dt);
     }
 
-    /* iso screen anchor: project look point, offset so it sits above centre */
-    const pr = m.iso(look.x, look.y, look.z);
-    /* zoom adapts to canvas width (dpr-scaled) against the reference width */
-    const adapt = m.clamp(view.w / (p.refW || 1264), 0.55, 1.6);
-    const targetZoom = p.zoom * adapt * (1 - m.clamp((Math.hypot(target.vx, target.vy) - 20) / 60, 0, 0.18));
-    cam.zoom = m.damp(cam.zoom, targetZoom, 4, dt);
+    cam.sq = sq;
+    cam.rot = m.angDamp(cam.rot != null ? cam.rot : rot, rot, 4.5, dt);
 
-    /* we want the LOOK point to appear at screen anchor (centre, 58% height for
-       car cam so more pitch ahead is visible) */
-    const anchorX = view.w / 2;
-    const anchorY = view.h * (cam.mode === "BALL" ? 0.52 : 0.58);
-    const sx = pr.u * cam.zoom, sy = pr.v * cam.zoom;
-    cam.ox = m.damp(cam.ox, anchorX - sx, 6.5, dt);
-    cam.oy = m.damp(cam.oy, anchorY - sy, 6.5, dt);
+    /* pan so the look point lands at the screen anchor */
+    const c = Math.cos(cam.rot), s = Math.sin(cam.rot);
+    const rx = lookX * c - lookY * s;
+    const ry = (lookX * s + lookY * c) * sq - lookZ;
+    cam.ox = m.damp(cam.ox || 0, view.w / 2 - rx * cam.zoom, 6.5, dt);
+    cam.oy = m.damp(cam.oy || 0, anchorY - ry * cam.zoom, 6.5, dt);
 
     /* shake */
     if (cam.shakeT > 0) {
@@ -75,15 +79,9 @@ RTL.camera = (function (C, m) {
     cam.ready = true;
   }
 
-  /** hard snap (kickoff/mode change) */
-  function snap(cam, target, ball, dt0) {
-    const dt = 1 / 60;
-    cam.ox = cam.ox || 0; cam.oy = cam.oy || 0; cam.zoom = cam.zoom || preset(cam.mode).zoom;
-    /* teleport by running update with aggressive damping: emulate by direct set */
-    const before = { ox: cam.ox, oy: cam.oy };
-    update(cam, target, ball, 0.0001, { w: cam.vw || 800, h: cam.vh || 600 });
-    cam.ox = m.damp(before.ox, cam.ox, 60, 1); // jump most of the way
-    cam.oy = m.damp(before.oy, cam.oy, 60, 1);
+  /** hard snap (kickoff/mode change): one big-dt update ≈ teleport */
+  function snap(cam, target, ball, dt0, view) {
+    update(cam, target, ball, 1, view || { w: cam.vw || 800, h: cam.vh || 600 });
   }
 
   function toggle(cam) {
@@ -100,5 +98,5 @@ RTL.camera = (function (C, m) {
     return true;
   }
 
-  return { update, snap, toggle, setMode, mode };
+  return { update, snap, toggle, setMode };
 })(RTL.C, RTL.mathx);
