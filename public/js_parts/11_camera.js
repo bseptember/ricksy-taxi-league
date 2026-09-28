@@ -29,11 +29,12 @@ RTL.camera = (function (C, m) {
       const dx = target.x - ball.x, dy = target.y - ball.y;
       if (Math.hypot(dx, dy) > 0.5) cam._yaw = Math.atan2(dy, dx);
       rot = Math.PI / 2 - (cam._yaw || 0);
-      /* adaptive zoom: pull out when the ball is far so it stays in frame */
+      /* adaptive zoom: MILDER — pull out only slightly when the ball is far,
+         keep the pitch big and readable (the camera pans to follow instead) */
       const bl = Math.max(6, Math.hypot(ball.x - target.x, ball.y - target.y));
       const cap = (view.h * 0.78) / (bl * sq);
       const adapt = m.clamp(view.w / (p.refW || 1264), 0.55, 1.6);
-      const tz = Math.min(p.zoom * adapt, cap);
+      const tz = Math.max(Math.min(p.zoom * adapt, cap), p.zoom * adapt * 0.62);
       cam.zoom = m.damp(cam.zoom || tz, tz, 3, dt);
       lookX = target.x; lookY = target.y; lookZ = target.z;
       anchorY = view.h * (p.anchorY || 0.76);
@@ -60,7 +61,14 @@ RTL.camera = (function (C, m) {
     }
 
     cam.sq = sq;
-    cam.rot = m.angDamp(cam.rot != null ? cam.rot : rot, rot, 4.5, dt);
+    /* LIMITED-RATE rotation: the world view can never whip around. This is
+       what makes ball cam usable — it swings smoothly, like RL's. */
+    let dRot = rot - (cam.rot != null ? cam.rot : rot);
+    while (dRot > Math.PI) dRot -= Math.PI * 2;
+    while (dRot < -Math.PI) dRot += Math.PI * 2;
+    const maxRate = cam.mode === "BALL" ? 1.6 : 2.8;  // rad/s cap
+    const step = Math.max(-maxRate * dt, Math.min(maxRate * dt, dRot));
+    cam.rot = (cam.rot != null ? cam.rot : rot) + step;
 
     /* pan so the look point lands at the screen anchor */
     const c = Math.cos(cam.rot), s = Math.sin(cam.rot);
