@@ -1,0 +1,12 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "ricksy-taxi-league",
+  "compatibility_date": "2025-01-01",
+  "workers_dev": false,
+  "assets": {
+    "directory": "./public"
+  },
+  "routes": [
+    { "pattern": "ricksytaxi.imidlalo.co.za", "custom_domain": true }
+  ]
+}
