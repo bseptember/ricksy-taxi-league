@@ -3,6 +3,10 @@
    Car-soccer physics: cars (drive/jump/flip/boost/carry/demo), ball
    (gravity/drag/bounce), collisions, walls, goals. Pure sim, fixed dt.
    NOTE: the match CLOCK is owned by 13_main (sim never touches match.t).
+   ASSISTED vs CLASSIC: inp.moveX/moveY (screen-space -1..1) present =>
+   Assisted mode: car accelerates in SCREEN direction (up-screen = -Y world
+   pre-rotation... actually world-space move vector supplied by main which
+   accounts for camera rotation). moveVec overrides throttle/steer.
    ========================================================================== */
 "use strict";
 
@@ -70,10 +74,45 @@ RTL.sim = (function (C, m, W) {
     let latX = car.vx - fx * along, latY = car.vy - fy * along;
 
     if (car.onGround) {
-      /* --- steering: speed-sensitive turn rate --- */
-      const sp = Math.abs(along);
-      const turn = m.lerp(C.CAR_TURN_RATE, C.CAR_TURN_RATE_HIGH, m.clamp(sp / C.CAR_MAX_SPEED, 0, 1));
-      if (sp > 0.5) car.heading += inp.steer * turn * dt * (along < 0 ? -1 : 1);
+      /* --- ASSISTED (moveVec): screen-directional, "push where you want to go" --- */
+      if (inp.moveVec) {
+        const mvx = inp.moveVec.x, mvy = inp.moveVec.y;
+        const ml = Math.hypot(mvx, mvy);
+        if (ml > 0.05) {
+          const nx = mvx / ml, ny = mvy / ml;
+          const wantSpeed = (inp.boost && car.boost > 0 ? C.CAR_BOOST_MAX_SPEED : C.CAR_MAX_SPEED) * Math.min(1, ml);
+          // accelerate velocity toward the desired direction
+          car.vx += nx * C.CAR_ACCEL * dt;
+          car.vy += ny * C.CAR_ACCEL * dt;
+          // face movement direction
+          car.heading = Math.atan2(ny, nx);
+          // clamp speed
+          const sp2 = Math.hypot(car.vx, car.vy);
+          if (sp2 > wantSpeed) { car.vx = car.vx / sp2 * wantSpeed; car.vy = car.vy / sp2 * wantSpeed; }
+        } else {
+          // coast
+          const dec = C.CAR_GROUND_FRICTION * dt;
+          const sp2 = Math.hypot(car.vx, car.vy);
+          if (sp2 <= dec) { car.vx = 0; car.vy = 0; }
+          else { car.vx -= car.vx / sp2 * dec; car.vy -= car.vy / sp2 * dec; }
+        }
+        if (inp.boost && car.boost > 0) {
+          car.boost = Math.max(0, car.boost - C.BOOST_USE_PER_SEC * dt);
+          car.boostHeld = true;
+          car.vx += Math.cos(car.heading) * C.CAR_BOOST_ACCEL * dt;
+          car.vy += Math.sin(car.heading) * C.CAR_BOOST_ACCEL * dt;
+        } else car.boostHeld = false;
+        car.wheelspin += Math.hypot(car.vx, car.vy) * dt * 2.2;
+
+        if (jumpDown && car.canJump) {
+          car.vz = C.CAR_JUMP_VZ;
+          car.onGround = false; car.z = 0.05;
+          car.canJump = false; car.jumping = true; car.jumpT = 0;
+          pushEvent(match, { type: "jump", who: car.id });
+        }
+      } else {
+      /* --- CLASSIC: tank steering --- */
+      const fwdSpeed = car.vx * fx + car.vy * fy;
 
       /* --- engine / brake / coast --- */
       const boosting = car.boostHeld;
@@ -108,10 +147,21 @@ RTL.sim = (function (C, m, W) {
         car.canJump = false; car.jumping = true; car.jumpT = 0;
         pushEvent(match, { type: "jump", who: car.id });
       }
+      } // end CLASSIC branch
     } else {
       /* --- airborne --- */
       car.airTime += dt;
       car.jumping = false;
+      /* Assisted in air: steer velocity toward stick direction (air control) */
+      if (inp.moveVec) {
+        const mvx = inp.moveVec.x, mvy = inp.moveVec.y;
+        const ml = Math.hypot(mvx, mvy);
+        if (ml > 0.05) {
+          car.vx += (mvx / ml) * C.CAR_ACCEL * 0.28 * dt;
+          car.vy += (mvy / ml) * C.CAR_ACCEL * 0.28 * dt;
+          car.heading = Math.atan2(mvy, mvx);
+        }
+      }
       car.heading += inp.steer * C.CAR_AIR_TURN * dt;
       /* small forward air accel */
       if (inp.throttle > 0.05) {

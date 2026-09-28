@@ -311,12 +311,16 @@ RTL.render = (function (C, m, W, S) {
       ctx.arc(pr.x, pr.y - sc * 8, sc * 5, 0, m.TAU);
       ctx.stroke();
     }
-    /* player marker */
+    /* player marker — direction arrow above car (retro league style) */
     if (car.id === "P1") {
-      ctx.fillStyle = "#ffffff";
+      ctx.fillStyle = "#3aa0ff";
+    } else {
+      ctx.fillStyle = "#ff8a2a";
+    }
+    if (car.id === "P1" || true) {
       const my = pr.y - sc * 20 - (Math.sin(view.time * 4) > 0 ? 2 : 0);
       ctx.beginPath();
-      ctx.moveTo(pr.x, my + 6); ctx.lineTo(pr.x - 5, my); ctx.lineTo(pr.x + 5, my);
+      ctx.moveTo(pr.x, my + 7); ctx.lineTo(pr.x - 5, my); ctx.lineTo(pr.x + 5, my);
       ctx.closePath(); ctx.fill();
     }
   }

@@ -79,6 +79,10 @@ RTL.ui = (function (C, m) {
     const mm = Math.floor(t / 60), ss = Math.floor(t % 60);
     const clock = mm + ":" + (ss < 10 ? "0" : "") + ss;
     textShadow(ctx, clock, px + pw / 2, py + 11 * K, 14 * K, t <= 10 && match.state === "play" ? C.COLORS.danger : "#ffffff", "center");
+    /* YOU / difficulty-name / BOT labels under the scoreboard (retro league parity) */
+    text(ctx, "YOU", px + 34 * K, py + ph + 4, 7 * K, C.COLORS.blue, "center");
+    text(ctx, C.AI_DIFFICULTIES[ui.difficulty || 0], px + pw / 2, py + ph + 4, 7 * K, C.COLORS.uiDim, "center");
+    text(ctx, "BOT", px + pw - 34 * K, py + ph + 4, 7 * K, C.COLORS.orange, "center");
     if (match.overtime) text(ctx, "GOLDEN GOAL", px + pw / 2, py + ph + 2, 8 * K, C.COLORS.accent, "center", 0.6 + 0.4 * Math.sin(view.time * 6));
 
     /* boost gauge bottom-left */
@@ -107,6 +111,9 @@ RTL.ui = (function (C, m) {
     /* carry indicator */
     if (car && car.carrying) {
       textShadow(ctx, "CARRY! F TO SHOOT", w / 2, view.h - 70 * K, 10 * K, C.COLORS.good, "center");
+    } else if (car && !car.carrying && car.carryCd <= 0) {
+      /* SHOT READY hint (retro league parity) */
+      text(ctx, "SHOT READY - TAP F TO SHOOT", 12 * K, view.h - 76 * K, 7 * K, C.COLORS.good);
     }
     /* mobile: boost button fills */
     if (ui.touchMode) {

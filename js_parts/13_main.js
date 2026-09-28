@@ -39,6 +39,7 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
     defaultCam: "CAR",
     difficulty: 1,
     assisted: true,
+    unlimitedFreeBoost: true,
     forceTouch: false,
     stats: { played: 0, wins: 0, goals: 0 },
     banner: null,           // {text, sub, t, total, big, color}
@@ -199,7 +200,7 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
       if (e.type === "goal") {
         match.score[e.team]++;
         const info = events.goal(match, e.team, e.speed);
-        S.banner = { text: "GOAL!", sub: info.sub + "  " + events.describe(e.speed),
+        S.banner = { text: "GOAL!", sub: (e.team === "blue" ? "BLUE" : "ORANGE") + " SCORES · " + Math.round(e.speed * 3.6) + " KM/H",
           t: info.freezeS, total: info.freezeS, big: true,
           color: e.team === "blue" ? C.COLORS.blue : C.COLORS.orange };
         audio.play("goal");
@@ -262,6 +263,18 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
     /* build P1 input */
     const p1 = inputs.P1;
     input.sample(p1);
+    /* ASSISTED: convert screen stick/keys into a WORLD move vector using the
+       camera rotation (screen up = away from viewer). This is the Retro League
+       "push where you want to go" feel. CLASSIC keeps throttle/steer. */
+    if (S.assisted) {
+      const sx = p1.steer, sy = -p1.throttle;      // screen x, screen y (up = -y)
+      if (Math.abs(sx) + Math.abs(sy) > 0.05) {
+        const rot = camState.rot || 0;
+        const cr = Math.cos(rot), sr = Math.sin(rot);
+        // screen->world: rotate by -rot around Z (screen-space move)
+        p1.moveVec = { x: sx * cr - sy * sr, y: sx * sr + sy * cr };
+      } else p1.moveVec = null;
+    } else p1.moveVec = null;
     /* AI thinks at 30 Hz */
     aiTimer -= dt;
     if (aiTimer <= 0) {
@@ -271,6 +284,10 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
       inputs.AI.boost = !!think.boost; inputs.AI.jumpEdge = !!think.jump;
       inputs.AI.shootEdge = !!think.shoot; inputs.AI.carryEdge = !!think.carry;
       inputs.AI.brake = !!think.brake;
+    }
+    /* unlimited boost in free play (his game's default) */
+    if (match.mode === "free" && S.unlimitedFreeBoost) {
+      cars[0].boost = C.MAX_BOOST;
     }
     /* stats: carry time + shots */
     for (const car of cars) {
