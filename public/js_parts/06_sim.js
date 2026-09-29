@@ -249,12 +249,41 @@ RTL.sim = (function (C, m, W) {
       car.onGround = false;
     }
 
-    /* --- walls (cars) --- */
+    /* --- walls (cars) — WALL DRIVE (Rocket-League style): if the car hits a
+       wall while moving fast (>= 60% max speed), it sticks to the wall and
+       can drive along it for up to ~1.6s before gravity peels it off. While
+       stuck, steering input slides the car ALONG the wall instead of away
+       from it. Slow contact = plain bounce (old behavior). */
     const cl = W.clampToPitch(car.x, car.y, 0, carRadius());
+    const speedNow = Math.hypot(car.vx, car.vy);
     if (cl.hitWall) {
       car.x = cl.x; car.y = cl.y;
-      if (cl.nx !== 0) car.vx *= -0.3;
-      if (cl.ny !== 0) car.vy *= -0.3;
+      const fast = speedNow >= C.CAR_MAX_SPEED * 0.6;
+      if (fast && car.wallDriveT == null) car.wallDriveT = 0;
+      if (car.wallDriveT != null && car.wallDriveT < 1.6) {
+        /* stick: keep z pinned slightly up the wall, no bounce */
+        car.wallDriveT += dt;
+        car.z = Math.max(car.z, 0.4);
+        car.onGround = false;           // airborne physics while on wall
+        /* damp the into-wall velocity, keep along-wall velocity */
+        if (cl.nx !== 0) car.vx *= 0.55;
+        if (cl.ny !== 0) car.vy *= 0.55;
+        /* moveVec input slides along the wall (tangential) */
+        if (inp.moveVec) {
+          const tx = cl.nx !== 0 ? 0 : 1, ty = cl.ny !== 0 ? 0 : 1;
+          const slide = (inp.moveVec.x * tx + inp.moveVec.y * ty);
+          if (cl.nx !== 0) car.vx = -cl.nx * Math.abs(car.vx) * 0.9 + 0; // hug
+          if (cl.ny !== 0) car.vy = -cl.ny * Math.abs(car.vy) * 0.9 + 0;
+          car.vx += (cl.nx !== 0 ? 0 : slide * C.CAR_ACCEL * dt);
+          car.vy += (cl.ny !== 0 ? 0 : slide * C.CAR_ACCEL * dt);
+        }
+      } else {
+        if (cl.nx !== 0) car.vx *= -0.3;
+        if (cl.ny !== 0) car.vy *= -0.3;
+        car.wallDriveT = null;
+      }
+    } else if (car.wallDriveT != null) {
+      car.wallDriveT = null;
     }
 
     /* --- shoot BEFORE carry-ride (so a carried ball can be fired this step) --- */
