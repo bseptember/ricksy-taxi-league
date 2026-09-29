@@ -548,9 +548,36 @@ RTL.render = (function (C, m, W, S) {
     for (const p of view.fx) {
       const pr = m.project(p.x, p.y, p.z, cam, s1);
       const a = m.clamp(1 - p.t / p.life, 0, 1);
+
+      /* GOAL SHOCKWAVE — an expanding ring on the goal plane. This is the
+         payoff moment of a match and it used to be a banner alone. */
+      if (p.kind === "boom") {
+        const k = 1 - a;                       // 0 -> 1 over its life
+        const rad = (14 + k * 190) * (cam.zoom / 16);
+        ctx.save();
+        ctx.globalAlpha = a * 0.9;
+        ctx.lineWidth = Math.max(2, 7 * a);
+        ctx.strokeStyle = "#fff6a8";
+        ctx.beginPath();
+        ctx.ellipse(pr.x, pr.y, rad, rad * 0.5, 0, 0, m.TAU);
+        ctx.stroke();
+        ctx.globalAlpha = a * 0.5;
+        ctx.lineWidth = Math.max(1, 16 * a);
+        ctx.strokeStyle = "#ff9f1c";
+        ctx.beginPath();
+        ctx.ellipse(pr.x, pr.y, rad * 0.72, rad * 0.36, 0, 0, m.TAU);
+        ctx.stroke();
+        ctx.restore();
+        continue;
+      }
+
       if (p.kind === "spark") ctx.fillStyle = `rgba(255,214,10,${a.toFixed(2)})`;
       else if (p.kind === "smoke") ctx.fillStyle = `rgba(140,150,165,${(a * 0.7).toFixed(2)})`;
-      else {
+      else if (p.kind === "goalfx") {
+        const gc = [[255, 61, 139], [255, 214, 10], [46, 230, 107], [0, 229, 255], [255, 61, 139]];
+        const c2 = gc[Math.floor(p.x * 3 + p.y * 5) % 5];
+        ctx.fillStyle = `rgba(${c2[0]},${c2[1]},${c2[2]},${a.toFixed(2)})`;
+      } else {
         const cols = [[255, 61, 139], [255, 214, 10], [46, 230, 107], [0, 229, 255]];
         const cc = cols[Math.floor(p.x + p.y) % 4];
         ctx.fillStyle = `rgba(${cc[0]},${cc[1]},${cc[2]},${a.toFixed(2)})`;

@@ -106,10 +106,20 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
   function spawnFx(kind, x, y, z, n) {
     for (let i = 0; i < n; i++) {
       if (fx.length >= C.FX_POOL) fx.shift();
+      /* boom: a single expanding shockwave anchored at the goal mouth */
+      if (kind === "boom") {
+        fx.push({ kind: "boom", x, y, z: 1.2, vx: 0, vy: 0, vz: 0, life: 0.85, t: 0 });
+        continue;
+      }
+      /* goalfx: firework debris, thrown faster and wider than normal confetti */
+      const isGoal = kind === "goalfx";
       fx.push({
         kind, x, y, z,
-        vx: (rng() * 2 - 1) * 6, vy: (rng() * 2 - 1) * 6, vz: rng() * 7 + 2,
-        life: kind === "confetti" ? 1.6 : 0.5 + rng() * 0.3, t: 0,
+        vx: (rng() * 2 - 1) * (isGoal ? 16 : 6),
+        vy: (rng() * 2 - 1) * (isGoal ? 16 : 6),
+        vz: isGoal ? rng() * 13 + 4 : rng() * 7 + 2,
+        life: isGoal ? 2.1 : kind === "confetti" ? 1.6 : 0.5 + rng() * 0.3,
+        t: 0,
       });
     }
   }
@@ -118,6 +128,7 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
       const p = fx[i];
       p.t += dt;
       if (p.t >= p.life) { fx.splice(i, 1); continue; }
+      if (p.kind === "boom") continue;   // shockwave is drawn, not moved
       p.x += p.vx * dt; p.y += p.vy * dt;
       p.z += p.vz * dt; p.vz -= 14 * dt;
       if (p.z < 0) { p.z = 0; p.vz *= -0.4; }
@@ -209,6 +220,16 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
         if (e.speed >= 25) audio.play("chant");
         camState.shakeT = 0.4; camState.shakeAmp = 7;
         spawnFx("confetti", ball.x, ball.y, 2, 26);
+        /* GOAL CELEBRATION: shockwave ring at the scoring mouth + a firework
+           burst. A goal is the payoff moment; it used to be a banner alone. */
+        {
+          /* spawn ON the goal line, not beyond it — off-pitch coords fall
+             outside the camera frame and the effect was never visible */
+          const mouthY = e.team === "blue" ? C.PITCH_H - 0.4 : 0.4;
+          S.goalFocus = { x: RTL.world.GOAL_CX, y: mouthY };
+          spawnFx("boom", RTL.world.GOAL_CX, mouthY, 0, 1);
+          spawnFx("goalfx", RTL.world.GOAL_CX, mouthY, 1.2, 46);
+        }
         if (match.overtime) match.overtimeGoal = true;
       } else if (e.type === "wallbang") {
         audio.play("wall");
@@ -369,6 +390,7 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
         if (match.stateT <= 0) { endMatch(); return; }
       } else if (match.stateT <= 0) {
         S.banner = null;
+        S.goalFocus = null;   // release the goal camera before the kickoff
         doKickoff(false);
       }
       sim.step(match, cars, ball, { P1: p1, AI: inputs.AI }, dt, rng); // frozen-ish
@@ -527,7 +549,12 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
       trail.push({ x: ball.x, y: ball.y, z: ball.z });
       if (trail.length > C.TRAIL_LENGTH) trail.shift();
       /* camera */
-      cam.update(camState, cars[0], ball, dt, { w: canvas.width, h: canvas.height });
+      cam.update(camState, cars[0], ball, dt, {
+        w: canvas.width, h: canvas.height,
+        /* hold on the scoring mouth during the goal freeze so the player
+           actually sees the celebration instead of the kickoff */
+        goalFocus: (match.state === "goal" && S.goalFocus) ? S.goalFocus : null,
+      });
       /* light flicker eases back to 1 */
       S.lightFlicker = m.damp(S.lightFlicker, 1, 0.5, dt);
     } else if (S.screen !== "playing") {
@@ -614,7 +641,7 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
   }
 
   /* QA/debug handle (harmless in prod, used by automated verification) */
-  const QA = { get match() { return match; }, get cars() { return cars; }, get ball() { return ball; }, get cam() { return camState; }, get ui() { return S; }, startMatch, act };
+  const QA = { get match() { return match; }, get cars() { return cars; }, get ball() { return ball; }, get cam() { return camState; }, get ui() { return S; }, get fx() { return fx; }, get hitStopT() { return hitStopT; }, startMatch, act };
 
   if (typeof document !== "undefined") {
     const start = () => boot();

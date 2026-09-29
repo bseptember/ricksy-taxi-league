@@ -24,6 +24,31 @@ RTL.camera = (function (C, m) {
     let rot, sq = p.sq || 0.5, lookX, lookY, lookZ, anchorY;
     const spd = Math.hypot(target.vx, target.vy);
 
+    /* GOAL FOCUS: during the goal freeze, hold the camera on the mouth that
+       just scored so the player actually watches the celebration instead of
+       the view snapping to the kickoff. view.goalFocus is set by main. */
+    if (view.goalFocus) {
+      const gAdapt = m.clamp(view.w / 1264, 0.55, 1.6);
+      cam.zoom = m.damp(cam.zoom || 15 * gAdapt, 15 * gAdapt, 2.2, dt);
+      cam.rot = -Math.PI / 4;
+      const gc = Math.cos(cam.rot), gs = Math.sin(cam.rot);
+      const gx = view.goalFocus.x, gy = view.goalFocus.y;
+      const grx = gx * gc - gy * gs;
+      const gry = (gx * gs + gy * gc) * (p.sq || 0.5);
+      const gtx = view.w / 2 - grx * cam.zoom;
+      const gty = view.h * 0.52 - gry * cam.zoom;
+      cam.ox = m.damp(cam.ox || 0, gtx, 4.5, dt);
+      cam.oy = m.damp(cam.oy || 0, gty, 4.5, dt);
+      if (cam.shakeT > 0) {
+        cam.shakeT -= dt;
+        const a = cam.shakeAmp * (cam.shakeT / 0.4);
+        cam.ox += (Math.random() * 2 - 1) * a;
+        cam.oy += (Math.random() * 2 - 1) * a;
+      }
+      cam.ready = true;
+      return;
+    }
+
     if (cam.mode === "BALL" && ball) {
       /* camera yaw = along the ball→car axis so the ball is centred horizontally */
       const dx = target.x - ball.x, dy = target.y - ball.y;
