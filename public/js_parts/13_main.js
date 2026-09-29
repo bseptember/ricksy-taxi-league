@@ -271,8 +271,11 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
       if (Math.abs(sx) + Math.abs(sy) > 0.05) {
         const rot = camState.rot || 0;
         const cr = Math.cos(rot), sr = Math.sin(rot);
-        // screen->world: rotate by -rot around Z (screen-space move)
-        p1.moveVec = { x: sx * cr - sy * sr, y: sx * sr + sy * cr };
+        // screen->world: INVERSE rotation (world = R(-rot) * screen). The old
+        // R(+rot) mapping rotated controls 90 deg away from what the camera
+        // shows at iso angles (measured: W moved the car LEFT on screen) —
+        // the core "unplayable" feel. R(-rot) makes push match point.
+        p1.moveVec = { x: sx * cr + sy * sr, y: -sx * sr + sy * cr };
       } else p1.moveVec = null;
     } else p1.moveVec = null;
     /* AI thinks at 30 Hz */

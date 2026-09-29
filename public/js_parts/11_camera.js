@@ -57,10 +57,15 @@ RTL.camera = (function (C, m) {
       lookZ = 0;
       anchorY = view.h * 0.52;
     } else {
-      /* CAR cam: the car's HEADING is up-screen (not velocity — a wall bounce
-         reverses velocity and would whip the camera; heading is continuous) */
+      /* CAR cam — REPLICA MODE: fixed iso direction like the reference game
+         (measured: view.isoTurn === 0 through a full 2.9-min match; the world
+         NEVER rotates). The old heading-locked rot spun the world up to
+         0.42 rad during a single 3s steering input (measured) while his game
+         rotates 0 — that disparity is what made steering feel unplayable.
+         With a fixed frame, W/A/S/D map to constant screen directions, same
+         as his game. Breathing zoom, ball lean and lazy pan are unchanged. */
       const hd = target.heading;
-      rot = -Math.PI / 2 - hd;
+      rot = (p.rot != null) ? p.rot : -Math.PI / 4;
       const la = (p.lookAhead || 5) * m.clamp(spd / 18, 0, 1.4);
       /* ball-bias: lean the look point toward a far ball so both stay framed.
          ALIGNED-BY-DISTANCE (not additive): the old additive vector (look-ahead

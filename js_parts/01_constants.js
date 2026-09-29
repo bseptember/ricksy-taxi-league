@@ -84,7 +84,7 @@ const RTL = {
   C.CAMS = ["CAR", "BALL", "TUNNEL"];
   /* RL-style chase cams: sq = vertical squash (low = pitch of the camera),
      anchorY = where the look point sits on screen. */
-  C.CAR_CAM = { lookAhead: 5, zoom: 26, refW: 1264, sq: 0.82, anchorY: 0.62 };
+  C.CAR_CAM = { lookAhead: 5, zoom: 26, refW: 1264, sq: 0.82, anchorY: 0.62, rot: -Math.PI / 4 };
   C.BALL_CAM = { zoom: 24, refW: 1264, sq: 0.8, anchorY: 0.78 };
   C.TUNNEL_CAM = { zoom: 9, refW: 1264, sq: 0.5, rot: -Math.PI / 4 };
   C.CAM_SWITCH_COOLDOWN = 0.25;   // avoid double-toggles
