@@ -36,6 +36,15 @@ RTL.render = (function (C, m, W, S) {
   /* ================= scene pieces ================= */
 
   function drawSky(ctx, view) {
+    /* AI-generated sunset sky (sky_sunset.png) when loaded — cover-fit.
+       Procedural gradient+sun remains the fallback and light-flicker layer. */
+    const skyImg = (typeof RTL !== "undefined" && RTL.art && RTL.art.get("sky_sunset")) || null;
+    if (skyImg) {
+      const s = Math.max(view.w / skyImg.width, view.h / skyImg.height);
+      const dw = skyImg.width * s, dh = skyImg.height * s;
+      ctx.drawImage(skyImg, (view.w - dw) / 2, (view.h - dh) / 2, dw, dh);
+      return;
+    }
     /* POP-ART SUNSET: purple top -> hot pink -> orange blaze at the horizon */
     const g = ctx.createLinearGradient(0, 0, 0, view.h);
     g.addColorStop(0, C.COLORS.sky);
@@ -143,12 +152,22 @@ RTL.render = (function (C, m, W, S) {
 
   function drawPitch(ctx, view) {
     const cam = view.cam;
-    /* grass base diamond */
-    ctx.fillStyle = C.COLORS.grassA;
+    /* grass base diamond with VECTOR-CARTOON depth (image-1 style): a soft
+       radial glow centered on the pitch brightens the middle, edges fall to
+       a deeper green — gives the clean saturated look without blur filters
+       (single gradient fill = fast). */
     const corners = [
       m.project(0, 0, 0, cam), m.project(C.PITCH_W, 0, 0, cam),
       m.project(C.PITCH_W, C.PITCH_H, 0, cam), m.project(0, C.PITCH_H, 0, cam),
     ];
+    const mid = m.project(C.PITCH_W / 2, C.PITCH_H / 2, 0, cam);
+    const rad = Math.max(
+      Math.hypot(corners[0].x - mid.x, corners[0].y - mid.y), 1
+    );
+    const glow = ctx.createRadialGradient(mid.x, mid.y, rad * 0.15, mid.x, mid.y, rad);
+    glow.addColorStop(0, C.COLORS.grassGlow || "#4fe06b");
+    glow.addColorStop(1, C.COLORS.grassA);
+    ctx.fillStyle = glow;
     ctx.beginPath();
     ctx.moveTo(corners[0].x, corners[0].y);
     for (let i = 1; i < 4; i++) ctx.lineTo(corners[i].x, corners[i].y);

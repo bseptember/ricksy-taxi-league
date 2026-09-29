@@ -23,7 +23,7 @@ function fakeCtx() {
         if (prop === "fillRect") t._calls.fillRect++;
         if (prop === "fillText") t._calls.fillText++;
         if (prop === "beginPath" || prop === "fill" || prop === "stroke") t._calls.path++;
-        if (prop === "createLinearGradient") return { addColorStop() {} };
+        if (prop === "createLinearGradient" || prop === "createRadialGradient") return { addColorStop() {} };
         if (prop === "measureText") return { width: 10 };
         return undefined;
       };

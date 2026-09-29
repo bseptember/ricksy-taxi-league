@@ -19,7 +19,7 @@ async function gen(prompt, outFile, size = '1024x1024', tries = 6) {
         fs.writeFileSync(outFile, buf);
         return `OK ${outFile} ${buf.length}b`;
       }
-      if (j.error && j.error.code === 1302) {
+      if (j.error && String(j.error.code) === '1302') {
         console.log(`  rate-limited, wait 45s (attempt ${a}/${tries})`);
         await new Promise(r => setTimeout(r, 45000));
         continue;

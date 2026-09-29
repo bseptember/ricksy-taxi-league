@@ -1,14 +1,22 @@
 [
   {
+    "out": "public/art/sky_sunset.png",
+    "size": "1792x1024",
+    "prompt": "Wide panoramic vector cartoon sunset sky for a game background, smooth saturated gradients from deep purple at top through magenta to bright orange at horizon, huge stylized sun with horizontal slats low on the right, flat layered purple hill silhouettes along the very bottom edge, solid flat color shapes only, clean vector shapes like a modern mobile racing game, no text, no ground, no water, no lake, no ocean, no sun reflection, no ripples, no foreground surface, sky and distant hill silhouettes only, 2D flat illustration"
+  },
+  {
+    "out": "public/art/taxi_blue.png",
+    "size": "1024x1024",
+    "prompt": "Single game sprite: bright blue minibus van taxi, boxy minibus van shape with tall roof, long roofline and sliding side door, seen from high isometric angle facing up-right, VECTOR CARTOON style like modern mobile racing games, smooth saturated gradients on the body, clean thick dark outline, big glossy windshield with sky reflection, chunky wheels, subtle drop shadow under the vehicle, solid flat magenta background (#d1208f), no text, no roof sign, vehicle fills 80 percent of frame, same body shape and size as an orange minibus taxi van, NOT a small car, NOT a hatchback, NOT a sedan"
+  },
+  {
     "out": "public/art/taxi_orange.png",
-    "prompt": "16-bit pixel art game sprite, top-down mini taxi van, high isometric angle facing up-right, bright orange body with white racing stripes, dark chunky outline, solid magenta background, retro arcade style, centered, same angle and size as a blue taxi sprite"
+    "size": "1024x1024",
+    "prompt": "Single game sprite: bright orange minibus taxi with roof taxi sign, seen from high isometric angle facing up-right, VECTOR CARTOON style like modern mobile racing games, smooth saturated gradients on the body, clean thick dark outline, big glossy windshield with sky reflection, chunky wheels, subtle drop shadow under the vehicle, solid flat magenta background (#d1208f), no text, vehicle fills 80 percent of frame, same angle and proportions as a blue minibus taxi sprite"
   },
   {
     "out": "public/art/ball.png",
-    "prompt": "16-bit pixel art game sprite, classic soccer ball, white with black pentagon patches, glossy highlight top-left, thick dark outline, chunky pixels, solid magenta background, retro arcade style, centered, large"
-  },
-  {
-    "out": "public/art/menu_bg.png",
-    "prompt": "16-bit pixel art wide landscape, South African township soccer field at sunset, isometric green pitch with white lines, purple-to-orange gradient sky, big banded sun, township houses with lit windows on horizon, colorful crowd stands, vibrant pop-art arcade style, no text"
+    "size": "1024x1024",
+    "prompt": "Single game sprite: classic soccer ball, VECTOR CARTOON style like modern mobile racing games, smooth glossy shading with bright highlight, clean thick dark outline, black and white pentagon pattern, subtle floor shadow, solid flat magenta background (#d1208f), no text, ball fills 70 percent of frame"
   }
 ]
