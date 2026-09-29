@@ -9,9 +9,12 @@
 RTL.spr = (function (C, m) {
   const cache = {};
   let baked = false;
-  /* AI-generated image assets (loaded by RTL.art, see 03b_art.js). When an
-     image is present it replaces the procedural sprite; keyed by name. */
-  const imgs = (typeof RTL !== "undefined" && RTL.art && RTL.art._imgs) || {};
+  /* AI-generated image assets (see 03b_art.js). RESOLVED LAZILY: 03_sprites.js
+     loads BEFORE 03b_art.js, so capturing the map at init time yielded a
+     permanent empty object and every AI asset silently fell back to the
+     procedural sprite (Brandon: "the graphics look the same"). */
+  const imgFor = (name) =>
+    (typeof RTL !== "undefined" && RTL.art && RTL.art._imgs && RTL.art._imgs[name]) || null;
 
   /* ---- canvas factory (override in tests) ---- */
   function _makeCanvas(w, h) {
@@ -308,7 +311,7 @@ RTL.spr = (function (C, m) {
   /* ---------- draw: prefers AI art image when loaded, else procedural ---- */
   function draw(ctx, name, x, y, opts) {
     const o = opts || {};
-    const img = imgs[name];
+    const img = imgFor(name);
     if (img) {
       /* Fit the drawn image into the same box the procedural sprite would
          occupy: procedural frame w*3*scale. AI art is ~930px wide → factor
