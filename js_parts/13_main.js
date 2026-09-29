@@ -150,6 +150,7 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
     match.mode = mode;
     match.score.blue = 0; match.score.orange = 0;
     match.t = C.MATCH_SECONDS;
+    match.firstDriveT = null;   // hint timer: null until kickoff countdown ends
     match.overtime = false; match.overtimeGoal = false;
     match.seed = (Math.random() * 1e9) | 0;
     match.kickoffFor = "blue";
@@ -308,6 +309,7 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
       if (match.stateT <= 0) {
         match.state = "play";
         S.countdown = null;
+        match.firstDriveT = 0;   // first-drive hint timer (ui)
         audio.play("countdown_go");
       } else if (n !== S._lastCount) {
         S._lastCount = n;
@@ -316,6 +318,7 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
       sim.step(match, cars, ball, { P1: p1, AI: inputs.AI }, dt, rng); // idle physics
     } else if (match.state === "play") {
       match.t -= dt;
+      if (match.firstDriveT != null && match.firstDriveT < 8) match.firstDriveT += dt;
       if (match.t <= 0) {
         if (match.score.blue !== match.score.orange) {
           match.t = 0;

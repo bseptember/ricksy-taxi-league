@@ -131,6 +131,17 @@ RTL.ui = (function (C, m) {
       /* SHOT READY hint (retro league parity) */
       text(ctx, "SHOT READY - TAP F TO SHOOT", 12 * K, view.h - 76 * K, 7 * K, C.COLORS.good);
     }
+    /* first-drive control hint: shows for the first 8s of every match, then
+       fades. W = up-screen (fixed iso), SHIFT = boost, B = camera. */
+    if (match.firstDriveT != null && match.firstDriveT < 8) {
+      const a = m.clamp(Math.min(1, (8 - match.firstDriveT) / 1.5), 0, 1);
+      const hy = view.h - 120 * K;
+      const lines = ["W A S D - DRIVE", "SHIFT - BOOST", "B - CAMERA", "F - SHOOT"];
+      panel(ctx, w / 2 - 95 * K, hy - 16 * K, 190 * K, (lines.length + 1.4) * 14 * K, { bg: "#14061f", alpha: a * 0.72, border: false });
+      lines.forEach((ln, i) => {
+        text(ctx, ln, w / 2, hy + i * 14 * K, 9 * K, i === 0 ? C.COLORS.accent : "#ffffff", "center", a);
+      });
+    }
     /* mobile: boost button fills */
     if (ui.touchMode) {
       /* drawn by DOM overlay; nothing here */
