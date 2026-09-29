@@ -155,11 +155,24 @@ RTL.sim = (function (C, m, W) {
 
       car.wheelspin += along * dt * 2.2;
 
+      /* --- GROUND STEERING (was dead code) ---
+         CRITICAL FIX: the CLASSIC branch never modified car.heading, so the
+         AI (which has no moveVec and always takes this branch) drove in a
+         dead straight line — measured 0.000 rad of heading change per second
+         of full lock. C.CAR_TURN_RATE / CAR_TURN_RATE_HIGH were defined and
+         never read. Turn rate falls off with speed for a planted feel. */
+      {
+        const spdFrac = m.clamp(Math.abs(along) / C.CAR_MAX_SPEED, 0, 1);
+        const turnRate = C.CAR_TURN_RATE + (C.CAR_TURN_RATE_HIGH - C.CAR_TURN_RATE) * spdFrac;
+        car.heading += inp.steer * turnRate * dt;
+      }
+
       /* --- jump --- */
       if (jumpDown && car.canJump) {
         car.vz = C.CAR_JUMP_VZ;
         car.onGround = false; car.z = 0.05;
-        car.canJump = false; car.jumping = true; car.jumpT = 0;
+        car.canJump = false; car.canFlip = false;   // no free flip off a jump
+        car.jumping = true; car.jumpT = 0;
         pushEvent(match, { type: "jump", who: car.id });
       }
       } // end CLASSIC branch

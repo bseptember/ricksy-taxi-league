@@ -1,22 +1,42 @@
 [
   {
-    "out": "public/art/sky_sunset.png",
-    "size": "1792x1024",
-    "prompt": "Wide panoramic vector cartoon sunset sky for a game background, smooth saturated gradients from deep purple at top through magenta to bright orange at horizon, huge stylized sun with horizontal slats low on the right, flat layered purple hill silhouettes along the very bottom edge, solid flat color shapes only, clean vector shapes like a modern mobile racing game, no text, no ground, no water, no lake, no ocean, no sun reflection, no ripples, no foreground surface, sky and distant hill silhouettes only, 2D flat illustration"
+    "out": "public/art/van_blue_ne.png",
+    "size": "1024x1024",
+    "prompt": "16-bit pixel art game sprite, a blue minibus taxi van seen from a high isometric top-down angle, the vehicle clearly FACING NORTH-EAST toward the upper right of the image, nose pointing to the top-right corner, clean magenta #C41D69 flat background, crisp pixel edges, no text, single vehicle centered"
   },
   {
-    "out": "public/art/taxi_blue.png",
+    "out": "public/art/van_blue_nw.png",
     "size": "1024x1024",
-    "prompt": "Single game sprite: bright blue minibus van taxi, boxy minibus van shape with tall roof, long roofline and sliding side door, seen from high isometric angle facing up-right, VECTOR CARTOON style like modern mobile racing games, smooth saturated gradients on the body, clean thick dark outline, big glossy windshield with sky reflection, chunky wheels, subtle drop shadow under the vehicle, solid flat magenta background (#d1208f), no text, no roof sign, vehicle fills 80 percent of frame, same body shape and size as an orange minibus taxi van, NOT a small car, NOT a hatchback, NOT a sedan"
+    "prompt": "16-bit pixel art game sprite, a blue minibus taxi van seen from a high isometric top-down angle, the vehicle clearly FACING NORTH-WEST toward the upper left of the image, nose pointing to the top-left corner, clean magenta #C41D69 flat background, crisp pixel edges, no text, single vehicle centered"
   },
   {
-    "out": "public/art/taxi_orange.png",
+    "out": "public/art/van_blue_se.png",
     "size": "1024x1024",
-    "prompt": "Single game sprite: bright orange minibus taxi with roof taxi sign, seen from high isometric angle facing up-right, VECTOR CARTOON style like modern mobile racing games, smooth saturated gradients on the body, clean thick dark outline, big glossy windshield with sky reflection, chunky wheels, subtle drop shadow under the vehicle, solid flat magenta background (#d1208f), no text, vehicle fills 80 percent of frame, same angle and proportions as a blue minibus taxi sprite"
+    "prompt": "16-bit pixel art game sprite, a blue minibus taxi van seen from a high isometric top-down angle, the vehicle clearly FACING SOUTH-EAST toward the lower right of the image, nose pointing to the bottom-right corner, clean magenta #C41D69 flat background, crisp pixel edges, no text, single vehicle centered"
   },
   {
-    "out": "public/art/ball.png",
+    "out": "public/art/van_blue_sw.png",
     "size": "1024x1024",
-    "prompt": "Single game sprite: classic soccer ball, VECTOR CARTOON style like modern mobile racing games, smooth glossy shading with bright highlight, clean thick dark outline, black and white pentagon pattern, subtle floor shadow, solid flat magenta background (#d1208f), no text, ball fills 70 percent of frame"
+    "prompt": "16-bit pixel art game sprite, a blue minibus taxi van seen from a high isometric top-down angle, the vehicle clearly FACING SOUTH-WEST toward the lower left of the image, nose pointing to the bottom-left corner, clean magenta #C41D69 flat background, crisp pixel edges, no text, single vehicle centered"
+  },
+  {
+    "out": "public/art/van_orange_ne.png",
+    "size": "1024x1024",
+    "prompt": "16-bit pixel art game sprite, an orange minibus taxi van seen from a high isometric top-down angle, the vehicle clearly FACING NORTH-EAST toward the upper right of the image, nose pointing to the top-right corner, clean magenta #C41D69 flat background, crisp pixel edges, no text, single vehicle centered"
+  },
+  {
+    "out": "public/art/van_orange_nw.png",
+    "size": "1024x1024",
+    "prompt": "16-bit pixel art game sprite, an orange minibus taxi van seen from a high isometric top-down angle, the vehicle clearly FACING NORTH-WEST toward the upper left of the image, nose pointing to the top-left corner, clean magenta #C41D69 flat background, crisp pixel edges, no text, single vehicle centered"
+  },
+  {
+    "out": "public/art/van_orange_se.png",
+    "size": "1024x1024",
+    "prompt": "16-bit pixel art game sprite, an orange minibus taxi van seen from a high isometric top-down angle, the vehicle clearly FACING SOUTH-EAST toward the lower right of the image, nose pointing to the bottom-right corner, clean magenta #C41D69 flat background, crisp pixel edges, no text, single vehicle centered"
+  },
+  {
+    "out": "public/art/van_orange_sw.png",
+    "size": "1024x1024",
+    "prompt": "16-bit pixel art game sprite, an orange minibus taxi van seen from a high isometric top-down angle, the vehicle clearly FACING SOUTH-WEST toward the lower left of the image, nose pointing to the bottom-left corner, clean magenta #C41D69 flat background, crisp pixel edges, no text, single vehicle centered"
   }
 ]

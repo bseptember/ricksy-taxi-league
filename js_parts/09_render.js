@@ -227,28 +227,25 @@ RTL.render = (function (C, m, W, S) {
       ctx.closePath(); ctx.fill();
     }
 
-    /* turf texture overlay (baked once): grass speckle + wear. Clipped to the
-       pitch quad, drawn with 'overlay' so it enriches without washing out the
-       mow stripes or the radial glow. */
+    /* Turf detail as ONE stretched drawImage mapped to the pitch quad (no
+       clip, no `overlay` blend, no per-tile loop). The earlier version tiled a
+       256px texture across the pitch every frame — measured at 566-1030
+       clipped, blended drawImage calls per frame, which knocks mid-range
+       Android off the GPU fast path. Texture quality suffers slightly at
+       extreme zoom; frame cost drops to a single blit. */
     if (turfTex) {
+      const p0 = corners[0], p1 = corners[1], p2 = corners[2];
       ctx.save();
-      ctx.beginPath();
-      ctx.moveTo(corners[0].x, corners[0].y);
-      for (let i = 1; i < 4; i++) ctx.lineTo(corners[i].x, corners[i].y);
-      ctx.closePath();
-      ctx.clip();
-      ctx.globalCompositeOperation = "overlay";
-      ctx.globalAlpha = 0.75;
-      /* tile across the pitch bounding box in projected space */
-      const minX = Math.min(corners[0].x, corners[1].x, corners[2].x, corners[3].x);
-      const maxX = Math.max(corners[0].x, corners[1].x, corners[2].x, corners[3].x);
-      const minY = Math.min(corners[0].y, corners[1].y, corners[2].y, corners[3].y);
-      const maxY = Math.max(corners[0].y, corners[1].y, corners[2].y, corners[3].y);
-      const tile = 128;
-      for (let y = minY; y < maxY; y += tile) {
-        for (let x = minX; x < maxX; x += tile) {
-          ctx.drawImage(turfTex, x, y, tile, tile);
-        }
+      ctx.globalAlpha = 0.28;
+      /* affine map: texture unit square -> pitch parallelogram (p0,p1,p2) */
+      const a11 = p1.x - p0.x, a12 = p2.x - p0.x;
+      const a21 = p1.y - p0.y, a22 = p2.y - p0.y;
+      const det = a11 * a22 - a12 * a21;
+      if (Math.abs(det) > 0.001) {
+        ctx.transform(a11 / turfTex.width, a21 / turfTex.width,
+                      a12 / turfTex.height, a22 / turfTex.height,
+                      p0.x, p0.y);
+        ctx.drawImage(turfTex, 0, 0);
       }
       ctx.restore();
     }
@@ -390,10 +387,29 @@ RTL.render = (function (C, m, W, S) {
   }
 
   /* ---------- entities ---------- */
+  /* Multi-angle AI vans: pick the sprite whose drawn facing best matches the
+     car's world heading, so the vehicle visibly points where it is driving
+     (a fixed camera otherwise makes a single-angle sprite ambiguous). */
+  const VAN_DIRS = ["ne", "nw", "sw", "se"];
+  function vanAsset(car) {
+    const team = car.team === "blue" ? "blue" : "orange";
+    const a = car.heading;
+    /* world +Y is "north"; heading 0 = +X = east. Pick the dominant axis. */
+    const cx = Math.cos(a), cy = Math.sin(a);
+    const dir = (cx >= 0 ? (cy >= 0 ? "ne" : "se") : (cy >= 0 ? "nw" : "sw"));
+    if (RTL.art) {
+      for (const d of [dir, VAN_DIRS[(VAN_DIRS.indexOf(dir) + 1) % 4], VAN_DIRS[(VAN_DIRS.indexOf(dir) + 2) % 4], VAN_DIRS[(VAN_DIRS.indexOf(dir) + 3) % 4]]) {
+        if (RTL.art.get("van_" + team + "_" + d)) return { key: "van_" + team + "_" + d, name: "taxi_" + team };
+      }
+    }
+    return { key: "taxi_" + team, name: "taxi_" + team };
+  }
+
   function drawCar(ctx, view, car) {
     const cam = view.cam;
     if (car.demo.active) return; // demolished cars invisible until respawn
-    const name = car.team === "blue" ? "taxi_blue" : "taxi_orange";
+    const a = vanAsset(car);
+    const name = a.name, imgKey = a.key;
     const sc = sprScale(cam, 0.115);
     /* shadow on ground */
     const sh = m.project(car.x, car.y, 0, cam, s1);
@@ -417,9 +433,9 @@ RTL.render = (function (C, m, W, S) {
       ctx.arc(bp.x, bp.y, sc * 1.1 * flick, 0, m.TAU);
       ctx.fill();
     }
-    S.draw(ctx, name, pr.x, pr.y + sc, {
+    S.draw(ctx, imgKey, pr.x, pr.y + sc, {
       frame, scale: sc,
-      flip: !faceRight,
+      flip: imgKey === name ? !faceRight : false,
     });
     /* wall-drive spark: while wall-stuck, grind sparks at the wheels */
     if (car.wallDriveT != null && car.wallDriveT > 0) {
@@ -442,17 +458,42 @@ RTL.render = (function (C, m, W, S) {
       ctx.arc(pr.x, pr.y - sc * 8, sc * 5, 0, m.TAU);
       ctx.stroke();
     }
-    /* player marker — direction arrow above car (retro league style) */
-    if (car.id === "P1") {
-      ctx.fillStyle = "#3aa0ff";
-    } else {
-      ctx.fillStyle = "#ff8a2a";
-    }
-    if (car.id === "P1" || true) {
-      const my = pr.y - sc * 20 - (Math.sin(view.time * 4) > 0 ? 2 : 0);
+    /* HEADING INDICATOR — the fixed-iso camera means the sprite alone can't
+       show which way the car faces. This arrow rotates with the true world
+       heading, projected into screen space, so facing is always readable.
+       Player = cyan arrow, bot = orange, both floating above the car. */
+    {
+      const hx = Math.cos(car.heading), hy = Math.sin(car.heading);
+      const cs = Math.cos(cam.rot), sn = Math.sin(cam.rot);
+      /* project the heading vector into screen space (same transform as mathx.project) */
+      const dx = hx * cs - hy * sn;
+      const dy = (hx * sn + hy * cs) * cam.sq;
+      const ang = Math.atan2(dy, dx);
+      /* Size/position from the ACTUAL drawn van box. The AI art is ~932x821 px
+         source; the drawn box is img * (scale/3) * 0.115, and draw() anchors the
+         BOTTOM at pr.y + sc, so the van occupies [pr.y - drawnH + sc, pr.y+sc].
+         The arrow must clear drawnH or it renders inside the sprite. */
+      const ref = (RTL.art && RTL.art.get("taxi_blue")) || null;
+      const drawnW = (ref ? ref.width : 30) * (sc / 3) * 0.115;
+      const drawnH = (ref ? ref.height : 16) * (sc / 3) * 0.115;
+      const len = Math.max(11, drawnW * 0.30);
+      const bob = Math.sin(view.time * 4 + (car.id === "P1" ? 0 : 1.7)) * 1.8;
+      const ax = pr.x, ay = pr.y + sc - drawnH - 10 + bob;
+      ctx.save();
+      ctx.translate(ax, ay);
+      ctx.rotate(ang);
+      ctx.fillStyle = car.id === "P1" ? "rgba(90,210,255,.95)" : "rgba(255,150,40,.9)";
+      ctx.strokeStyle = "rgba(12,10,24,.85)";
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(pr.x, my + 7); ctx.lineTo(pr.x - 5, my); ctx.lineTo(pr.x + 5, my);
-      ctx.closePath(); ctx.fill();
+      ctx.moveTo(len, 0);
+      ctx.lineTo(-len * 0.55, -len * 0.52);
+      ctx.lineTo(-len * 0.2, 0);
+      ctx.lineTo(-len * 0.55, len * 0.52);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.fill();
+      ctx.restore();
     }
   }
 

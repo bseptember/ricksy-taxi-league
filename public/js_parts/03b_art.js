@@ -16,6 +16,16 @@ RTL.art = (function () {
     sky_sunset: "art/sky_sunset.png",
     logo_banner: "art/logo_banner.png",
   };
+  /* Multi-angle vans (4 compass facings per team). Loaded opportunistically: a
+     missing angle is not a failure, the renderer falls back to the next best
+     angle and then to the single taxi_* image. */
+  const VAN_DIRS = ["ne", "nw", "sw", "se"];
+  for (const team of ["blue", "orange"]) {
+    for (const d of VAN_DIRS) {
+      const key = "van_" + team + "_" + d;
+      wanted[key] = "art/" + key + ".png";
+    }
+  }
   let loaded = 0, failed = 0, total = 0;
 
   function load(onDone) {
@@ -25,8 +35,13 @@ RTL.art = (function () {
     let done = 0;
     names.forEach((name) => {
       const img = new Image();
+      const optional = name.indexOf("van_") === 0;
       img.onload = () => { imgs[name] = img; loaded++; done++; if (done === total && onDone) onDone(); };
-      img.onerror = () => { failed++; done++; if (done === total && onDone) onDone(); };
+      img.onerror = () => {
+        if (!optional) failed++;
+        done++;
+        if (done === total && onDone) onDone();
+      };
       img.src = wanted[name];
     });
   }

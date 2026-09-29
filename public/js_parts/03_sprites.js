@@ -340,7 +340,13 @@ RTL.spr = (function (C, m) {
     const w = cv.width * sc, h = cv.height * sc;
     ctx.save();
     if (o.alpha != null) ctx.globalAlpha = o.alpha;
-    if (o.flip) {
+    if (o.rot) {
+      /* continuous rotation about the ground anchor (used by multi-angle art
+         and the flip spin) */
+      ctx.translate(Math.round(x), Math.round(y));
+      ctx.rotate(o.rot);
+      ctx.drawImage(cv, -w / 2, -h, w, h);
+    } else if (o.flip) {
       ctx.translate(Math.round(x), Math.round(y));
       ctx.scale(-1, 1);
       ctx.drawImage(cv, 0, -h, w, h);

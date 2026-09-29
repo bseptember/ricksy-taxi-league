@@ -17,21 +17,25 @@ const RTL = {
   /* ---- Match ---- */
   C.MATCH_SECONDS = 300;          // 5:00 like the OG
   C.COUNTDOWN_SECONDS = 3;
-  C.GOAL_FREEZE_SECONDS = 2.6;    // banner + chant time before kickoff reset
+  C.GOAL_FREEZE_SECONDS = 1.8;    // banner + chant time before kickoff reset
   C.OVERTIME_SECONDS = 60;        // golden-goal max extra time
-  C.START_BOOST = 34;             // OG starts at 34/100
+  C.START_BOOST = 45;             // kickoffs have something to spend
   C.MAX_BOOST = 100;
-  C.BOOST_USE_PER_SEC = 33;
+  C.BOOST_USE_PER_SEC = 24;       // 4.2s of boost, not a one-shot
   C.BOOST_PADS_REGEN = 12;        // passive regen per second (small pads feel)
 
   /* ---- Physics ---- */
   C.FIXED_DT = 1 / 120;           // simulation step
   C.GRAVITY = 22;                 // m/s^2 (arcadey, stronger than earth for snappy jumps)
   C.BALL_RADIUS = 0.35;
-  C.BALL_DRAG = 0.30;             // fraction of velocity lost per second (air+ground blend)
-  C.BALL_GROUND_ROLL_FRICTION = 0.62; // per-second retained when rolling
-  C.BALL_BOUNCE = 0.62;           // vertical restitution
-  C.BALL_WALL_BOUNCE = 0.72;      // horizontal restitution vs boards
+  /* FEEL FIX (measured): the old pair (0.30 drag x 0.62 roll applied at 3x)
+     compounded to 24% speed retained per second — a 30 m/s shot died at 7
+     m/s after one second and travelled 19.7m of a 105m pitch. Shots felt
+     dead and matches were goalless. New values: 89% air / 66% ground. */
+  C.BALL_DRAG = 0.12;             // fraction of velocity lost per second
+  C.BALL_GROUND_ROLL_FRICTION = 0.90; // per-second retained when rolling
+  C.BALL_BOUNCE = 0.70;           // vertical restitution
+  C.BALL_WALL_BOUNCE = 0.80;      // horizontal restitution vs boards
   C.BALL_MAX_SPEED = 46;
   C.BALL_AIR_CONTROL = 0.24;      // car->ball push efficiency mid-air
 

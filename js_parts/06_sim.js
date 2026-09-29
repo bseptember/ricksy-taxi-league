@@ -69,7 +69,7 @@ RTL.sim = (function (C, m, W) {
     const jumpDown = inp.jumpEdge !== undefined ? !!inp.jumpEdge : !!inp.jump;
     let shotThisStep = false;
 
-    const fx = Math.cos(car.heading), fy = Math.sin(car.heading);
+    let fx = Math.cos(car.heading), fy = Math.sin(car.heading);
     let along = car.vx * fx + car.vy * fy;             // signed forward speed
     let latX = car.vx - fx * along, latY = car.vy - fy * along;
     /* ASSISTED branches write vx/vy directly; the tank recompose below must
@@ -155,11 +155,30 @@ RTL.sim = (function (C, m, W) {
 
       car.wheelspin += along * dt * 2.2;
 
+      /* --- GROUND STEERING (was dead code) ---
+         CRITICAL FIX: the CLASSIC branch never modified car.heading, so the
+         AI (which has no moveVec and always takes this branch) drove in a
+         dead straight line. C.CAR_TURN_RATE / CAR_TURN_RATE_HIGH were defined
+         and never read.
+         The velocity basis (fx/fy/along/lat*) was captured BEFORE this block
+         and is reused by the tank recompose at the bottom, so after rotating
+         the heading we must rotate the velocity basis by the SAME delta —
+         otherwise the recompose either undoes the turn (car pirouettes at
+         ~9.6 rad/s, measured) or kills all speed (car frozen, measured). */
+      if (inp.steer) {
+        const spdFrac = m.clamp(Math.abs(along) / C.CAR_MAX_SPEED, 0, 1);
+        const turnRate = C.CAR_TURN_RATE + (C.CAR_TURN_RATE_HIGH - C.CAR_TURN_RATE) * spdFrac;
+        car.heading += inp.steer * turnRate * dt;
+        const nfx = Math.cos(car.heading), nfy = Math.sin(car.heading);
+        fx = nfx; fy = nfy;   /* along/lat* are basis-INDEPENDENT scalars */
+      }
+
       /* --- jump --- */
       if (jumpDown && car.canJump) {
         car.vz = C.CAR_JUMP_VZ;
         car.onGround = false; car.z = 0.05;
-        car.canJump = false; car.jumping = true; car.jumpT = 0;
+        car.canJump = false; car.canFlip = false;   // no free flip off a jump
+        car.jumping = true; car.jumpT = 0;
         pushEvent(match, { type: "jump", who: car.id });
       }
       } // end CLASSIC branch

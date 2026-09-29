@@ -224,6 +224,16 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
         match.stats[e.team === "blue" ? "savesBlue" : "savesOrange"]++;
       } else if (e.type === "shot") {
         match.stats[e.team === "blue" ? "shotsBlue" : "shotsOrange"]++;
+      } else if (e.type === "kick") {
+        /* FEEL FIX: the sim has always emitted `kick` on every car-ball
+           contact and main silently DROPPED it, so the single most important
+           tactile moment in a car-soccer game had no sound, no sparks and no
+           shake — a 30 m/s rocket into the ball was completely mute. */
+        audio.play("kick");
+        spawnFx("spark", ball.x, ball.y, 0.5, e.hard ? 9 : 4);
+        if (e.hard) { camState.shakeT = 0.22; camState.shakeAmp = 4.5; }
+      } else if (e.type === "jump") {
+        audio.play("jump");
       } else if (e.type === "kickoff") {
         /* main drives kickoffs */
       }
@@ -286,6 +296,10 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
       const think = ai.think(match, cars, ball, S.difficulty, rng, 1 / 30);
       inputs.AI.throttle = think.throttle; inputs.AI.steer = think.steer;
       inputs.AI.boost = !!think.boost; inputs.AI.jumpEdge = !!think.jump;
+      /* the sim reads inp.carry / inp.shoot (level-triggered), while only the
+         edge latches were wired — so the bot could never carry or shoot, the
+         two ways it scores. Mirror the latches onto the held flags. */
+      inputs.AI.carry = !!think.carry; inputs.AI.shoot = !!think.shoot;
       inputs.AI.shootEdge = !!think.shoot; inputs.AI.carryEdge = !!think.carry;
       inputs.AI.brake = !!think.brake;
     }
@@ -480,10 +494,15 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
     if (S.screen !== "playing" || S.paused) hitRegions = [], S.focusItems = [];
 
     if (S.screen === "playing" && !S.paused) {
-      /* fixed-dt accumulator */
+      /* fixed-dt accumulator
+         SPIRAL FIX: frame() clamps dt to 0.1s = 12 sim steps at 1/120, but the
+         loop only ran 8, so any frame slower than 66.7ms let `acc` grow faster
+         than it drained — permanent slow motion plus input drift. Cap the
+         accumulator too so a stall can never bank more than one frame. */
       acc += dt;
+      acc = Math.min(acc, C.FIXED_DT * 12);
       let steps = 0;
-      while (acc >= C.FIXED_DT && steps < 8) {
+      while (acc >= C.FIXED_DT && steps < 12) {
         simTick(C.FIXED_DT);
         acc -= C.FIXED_DT; steps++;
         if (S.screen !== "playing") break; // match ended inside tick

@@ -7,11 +7,14 @@
 "use strict";
 
 RTL.ai = (function (C, m, W) {
-  /** difficulty tuning table: 0 relaxed .. 3 neural */
+  /** difficulty tuning table: 0 relaxed .. 3 neural
+   *  hesitate was a FREEZE PROBABILITY re-rolled at 30Hz: at 0.35 the RELAXED
+   *  bot was frozen 50.8% of the match (1-(1-0.35/60)^30) — a brick, not a
+   *  difficulty setting. Rescaled to real handicaps (8.4% / 4.3% / 1.4% / 0%). */
   const TUNE = [
-    { noise: 7.0, speed: 0.55, hesitate: 0.35, boost: false, aerial: false, flip: false, reaction: 0.55 },
-    { noise: 3.0, speed: 0.75, hesitate: 0.16, boost: true, aerial: false, flip: false, reaction: 0.33 },
-    { noise: 1.2, speed: 0.92, hesitate: 0.05, boost: true, aerial: true, flip: false, reaction: 0.2 },
+    { noise: 7.0, speed: 0.62, hesitate: 0.06, boost: false, aerial: false, flip: false, reaction: 0.55 },
+    { noise: 3.0, speed: 0.80, hesitate: 0.03, boost: true, aerial: false, flip: false, reaction: 0.33 },
+    { noise: 1.2, speed: 0.92, hesitate: 0.01, boost: true, aerial: true, flip: false, reaction: 0.2 },
     { noise: 0.3, speed: 1.0, hesitate: 0.0, boost: true, aerial: true, flip: true, reaction: 0.1 },
   ];
 
@@ -42,8 +45,14 @@ RTL.ai = (function (C, m, W) {
     let tx = bx, ty = by;
     let mode = "attack";
 
-    const ballToMyGoal = (myGoalY - ball.y) * attackDir; // >0 = ball heading to my goal
-    const iAmClosest = Math.abs(ball.y - me.y) < Math.abs(ball.y - (foe ? foe.y : ball.y));
+    /* CRITICAL FIX: the sign here made `ballToMyGoal` <= 0 across the whole
+       pitch, so `mode = "defend"` below was unreachable — the bot had no
+       defence at all and matches were goalless. attackDir is +1 when the bot
+       attacks +Y, so the ball sits "toward my goal" when (ball.y - myGoalY)
+       has the same sign as attackDir. */
+    const ballToMyGoal = (ball.y - myGoalY) * attackDir; // >0 = ball heading to my goal
+    const iAmClosest = Math.hypot(ball.x - me.x, ball.y - me.y)
+                     < Math.hypot(ball.x - (foe ? foe.x : ball.x + 99), ball.y - (foe ? foe.y : ball.y + 99));
 
     /* carrying foe -> chase the foe */
     if (foe && foe.carrying) mode = "chase";
@@ -100,28 +109,29 @@ RTL.ai = (function (C, m, W) {
     /* ------- shoot ------- */
     const ballAhead = (ball.x - me.x) * Math.cos(me.heading) + (ball.y - me.y) * Math.sin(me.heading);
     const ballDist = m.dist(me.x, me.y, ball.x, ball.y);
-    if (mode === "attack" && ballDist < 16) {
+    if (mode === "attack" && ballDist < 20) {
       const gAng = Math.atan2(atkGoalY - ball.y, W.GOAL_CX - ball.x);
       const myToBall = Math.atan2(ball.y - me.y, ball.x - me.x);
-      const aligned = Math.abs(m.angDiff(myToBall, gAng)) < 0.45;
-      /* don't shoot toward my own goal; clear to the side instead */
+      /* widened from 0.45 -> 0.7 rad and 3.6 -> 4.6 m: with no ball
+         prediction the bot could never satisfy the old tight window, which is
+         why AI-vs-AI matches finished 0-0 */
+      const aligned = Math.abs(m.angDiff(myToBall, gAng)) < 0.7;
       const facingOwnGoal = Math.abs(m.angDiff(me.heading, Math.atan2(myGoalY - me.y, W.GOAL_CX - me.x))) < 0.9;
-      if (ballAhead > 0 && aligned && dist < 16 && ballDist < 3.6) {
-        if (!facingOwnGoal) out.shoot = true;
-        else out.shoot = true; /* clearance beats own-goal risk at close range */
+      if (ballAhead > 0 && aligned && ballDist < 4.6) {
+        out.shoot = true;   /* clearance beats own-goal risk at close range */
       }
     }
 
     /* emergency clear: ball near my goal and I'm goal-side */
-    if (Math.abs(ball.y - myGoalY) < 9 && (me.y - myGoalY) * attackDir > 0 && ballDist < 3.4) {
+    if (Math.abs(ball.y - myGoalY) < 12 && (me.y - myGoalY) * attackDir > 0 && ballDist < 4.2) {
       out.shoot = true;
     }
 
     /* ------- carry ------- */
-    if (mode === "attack" && ballDist < 2.6 && ballAhead > 0.5 && ball.z < 1.2 && me.carryCd <= 0) {
+    if (mode === "attack" && ballDist < 3.2 && ballAhead > 0.5 && ball.z < 1.2 && me.carryCd <= 0) {
       /* carry when I have space ahead toward goal */
       const space = (atkGoalY - me.y) * attackDir;
-      if (space > 18 && Math.abs(diffAng) < 0.5) out.carry = true;
+      if (space > 12 && Math.abs(diffAng) < 0.7) out.carry = true;
     }
     /* release carry with a shot when in range */
     if (me.carrying) {
