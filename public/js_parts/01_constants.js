@@ -69,6 +69,10 @@ const RTL = {
   C.SHOT_TAP_SECONDS = 0.75;      // window the aim assist runs after tapping shoot
   C.SHOT_SPEED_MIN = 18;
   C.SHOT_SPEED_MAX = 34;
+  /* Tap-shot reach. The AI's shoot gate MUST equal this or its requests are
+     silently discarded by the sim (they were: AI fired at 3.7-3.9m, the sim
+     only honoured < 3.2m, so 3 requests produced 0 shots). */
+  C.TAP_SHOT_RANGE = 3.2;
   C.FLY_BOOST_AIR_ACCEL = 14;     // G key / fly assist toward ball
 
   /* ---- Pitch (FIFA-size, metres) ---- */

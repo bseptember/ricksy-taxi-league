@@ -155,14 +155,19 @@ RTL.ai = (function (C, m, W) {
     if (mode === "attack" && ballDist < 20) {
       const gAng = Math.atan2(atkGoalY - ball.y, W.GOAL_CX - ball.x);
       const myToBall = Math.atan2(ball.y - me.y, ball.x - me.x);
-      /* Alignment gate. Widened once to 0.7 rad, which let the bot strike from
-         almost any angle — the ball then leaves along the car's contact normal
-         rather than toward goal, and matches stayed 0-0 with the ball spraying
-         into the corners (measured: ball parked at x=18, mouth is 30.7-37.3).
-         Require a genuinely clean strike before committing. */
-      const aligned = Math.abs(m.angDiff(myToBall, gAng)) < 0.42;
-      const facingOwnGoal = Math.abs(m.angDiff(me.heading, Math.atan2(myGoalY - me.y, W.GOAL_CX - me.x))) < 0.9;
-      if (ballAhead > 0 && aligned && ballDist < 4.2) {
+      /* Strike gate. The old test compared the car->ball bearing with the
+         ball->goal bearing and demanded < 0.42 rad — but a car that is
+         correctly positioned BEHIND the ball is necessarily at ~PI rad from
+         the ball->goal line, so the gate could almost never be satisfied and
+         the bot never converted. The real questions are: is the ball on its
+         way to goal from where I am, and am I lined up to hit it through? */
+      const ballOnLine = Math.abs(m.angDiff(myToBall, gAng)) < 0.9;   // ball is goal-ward
+      const carBehind = Math.abs(m.angDiff(me.heading, gAng)) < 0.6;  // I'm aiming at it
+      /* Range MUST match the sim's tap-shot gate (06_sim.js: d < 3.2), or the
+         request is silently dropped. Measured: the bot asked to shoot at
+         3.68-3.90m and the sim threw every one away — 3 requests, 0 balls
+         launched. Keep this number in sync with TAP_SHOT_RANGE. */
+      if (ballAhead > 0 && (carBehind || ballOnLine) && ballDist < C.TAP_SHOT_RANGE) {
         out.shoot = true;   /* clearance beats own-goal risk at close range */
       }
     }

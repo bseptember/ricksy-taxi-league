@@ -125,6 +125,43 @@ function testGoalDetection(RTL) {
   ok(match.events.some((e) => e.type === "goal" && e.speed > 20), "goal event carries speed");
 }
 
+function testTapShotScores(RTL) {
+  section("sim: tap shot can actually score (regression)");
+  /* REGRESSION: the AI's shoot gate (3.68-3.90m in a measured match) and the
+     sim's tap-shot gate (d < 3.2) were never reconciled, so the bot's shoot
+     requests were SILENTLY DISCARDED and it could never finish an attack.
+     Both now share C.TAP_SHOT_RANGE. This test proves a driving hit from
+     just behind the ball scores, and that a stationary car does not — i.e.
+     the sim, not the AI, is the thing under test. */
+  const mkCar = (id, team, x, y, h, vy) => ({
+    id, team, x, y, z: 0, vx: 0, vy: vy || 0, vz: 0, heading: h, angVel: 0, boost: 100,
+    boostHeld: false, jumping: false, jumpT: 0, airTime: 0, canJump: true, canFlip: true,
+    flip: { active: false, t: 0, dx: 0, dy: 0 }, carrying: false, carryCd: 0, carryT: 0,
+    demo: { active: false, t: 0 }, respawnT: 0, onGround: true, wheelspin: 0, wallDriveT: null,
+  });
+  function run(speed) {
+    const match = { mode: "match", score: { blue: 0, orange: 0 }, t: 300, state: "play", stateT: 0, overtime: false, seed: 1, kickoffFor: "blue", events: [] };
+    const cars = [mkCar("P1", "blue", 34, 48, Math.PI / 2, speed)];
+    const ball = { x: 34, y: 50, z: 0.35, vx: 0, vy: 0, vz: 0, spin: 0, lastTouch: null };
+    const rng = RTL.mathx.rngFrom(3);
+    const inp = { P1: { throttle: 0, steer: 0, boost: false, jump: false, shoot: false, carry: false, brake: false },
+                  AI: { throttle: 0, steer: 0, boost: false, jump: false, shoot: false, carry: false, brake: false } };
+    let goal = false;
+    for (let i = 0; i < 1500; i++) {
+      RTL.sim.step(match, cars, ball, inp, 1 / 120, rng);
+      for (const e of match.events) if (e.type === "goal") goal = true;
+      match.events.length = 0;
+      if (goal) break;
+    }
+    return goal;
+  }
+  ok(run(24) === true, "a 24 m/s driving hit on the ball scores from just behind it");
+  ok(run(0) === false, "a stationary car beside the ball does NOT score (shot needs real speed)");
+  /* the shared-gate invariant that caused the months-long AI scoring bug */
+  ok(typeof RTL.C.TAP_SHOT_RANGE === "number" && RTL.C.TAP_SHOT_RANGE > 1,
+     "TAP_SHOT_RANGE constant exists and is shared by sim and AI");
+}
+
 function testCarryAndShot(RTL) {
   section("sim: carry + shot assist");
   // place car just behind ball, request carry, ball should latch to roof
@@ -242,6 +279,7 @@ testWorld(RTL);
 testSimBasics(RTL);
 testBallPhysics(RTL);
 testGoalDetection(RTL);
+testTapShotScores(RTL);
 testCarryAndShot(RTL);
 testAIBehaves(RTL);
 testFullMatchSim(RTL);

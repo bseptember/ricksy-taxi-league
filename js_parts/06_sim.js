@@ -333,18 +333,26 @@ RTL.sim = (function (C, m, W) {
         const dx = ball.x - car.x, dy = ball.y - car.y;
         const d = Math.hypot(dx, dy);
         const fdot = (dx / (d || 1)) * fx + (dy / (d || 1)) * fy;
-        if (d < 3.2 && fdot > 0.5) {
+        if (d < C.TAP_SHOT_RANGE && fdot > 0.5) {
           const g = W.attackGoal(car.team);
           const gx = W.GOAL_CX, gy = g.y;
           let ax = gx - ball.x, ay = gy - ball.y;
           const al = Math.hypot(ax, ay) || 1; ax /= al; ay /= al;
-          const sp = C.SHOT_SPEED_MIN * 0.8;
+          /* Shot power scaled by how square the car is to the ball and by the
+             car's own speed, across the ENGINE'S REAL range.
+             The old value was SHOT_SPEED_MIN * 0.8 = 14.4 m/s, which threw
+             away the entire 18-34 range the constants exist for: the ball
+             died ~16m short of the goal (measured: bot drove the ball to
+             y=89.4 with the goal at 105, four difficulty levels, no goals). */
+          const power = C.SHOT_SPEED_MIN +
+            (C.SHOT_SPEED_MAX - C.SHOT_SPEED_MIN) * m.clamp(fdot, 0, 1) * 0.9;
+          const sp = power;
           ball.vx = ax * sp + car.vx * 0.4;
           ball.vy = ay * sp + car.vy * 0.4;
           ball.vz = 3;
           ball.lastTouch = car.id;
           pushEvent(match, { type: "shot", team: car.team });
-          pushEvent(match, { type: "kick", who: car.id, hard: false });
+          pushEvent(match, { type: "kick", who: car.id, hard: true });
         }
       }
     }
