@@ -81,10 +81,11 @@ const RTL = {
   C.AI_NAMES = ["BOET", "TSHAMI", "BRA H", "UMNUZ"];
 
   /* ---- Cameras ---- */
-  C.CAMS = ["CAR", "BALL", "TUNNEL"];
+  C.CAMS = ["CAR", "BALL"];       // TUNNEL retired from the cycle (unplayable
+                                  // for the driver view; kept as preset only)
   /* RL-style chase cams: sq = vertical squash (low = pitch of the camera),
      anchorY = where the look point sits on screen. */
-  C.CAR_CAM = { lookAhead: 5, zoom: 26, refW: 1264, sq: 0.82, anchorY: 0.62, rot: -Math.PI / 4 };
+  C.CAR_CAM = { lookAhead: 5, zoom: 26, refW: 1264, sq: 0.82, anchorY: 0.62 };
   C.BALL_CAM = { zoom: 24, refW: 1264, sq: 0.8, anchorY: 0.78 };
   C.TUNNEL_CAM = { zoom: 9, refW: 1264, sq: 0.5, rot: -Math.PI / 4 };
   C.CAM_SWITCH_COOLDOWN = 0.25;   // avoid double-toggles

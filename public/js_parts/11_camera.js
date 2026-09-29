@@ -57,15 +57,19 @@ RTL.camera = (function (C, m) {
       lookZ = 0;
       anchorY = view.h * 0.52;
     } else {
-      /* CAR cam — REPLICA MODE: fixed iso direction like the reference game
-         (measured: view.isoTurn === 0 through a full 2.9-min match; the world
-         NEVER rotates). The old heading-locked rot spun the world up to
-         0.42 rad during a single 3s steering input (measured) while his game
-         rotates 0 — that disparity is what made steering feel unplayable.
-         With a fixed frame, W/A/S/D map to constant screen directions, same
-         as his game. Breathing zoom, ball lean and lazy pan are unchanged. */
+      /* CAR cam — RACING CHASE (driver view): the camera rotates so the
+         car's heading is always UP-SCREEN — you see what's in front of you,
+         like a racing game. This is what Brandon means by "we should see
+         everything in front of us". Two earlier attempts failed:
+         - v1 heading-lock whipped 0.42 rad per steering input (no rate cap).
+         - fixed-iso replica kept the frame still but the CAR pointed every
+           which way — "why does the car not face forward?".
+         The fix is heading-lock + the rotation machinery that already works:
+         the CAR maxRate cap (2.8 rad/s), the flip deadzone (3x near-reversal),
+         and slow-in-rate so the frame eases behind the car and then holds
+         still relative to it (no continuous spin while driving straight). */
       const hd = target.heading;
-      rot = (p.rot != null) ? p.rot : -Math.PI / 4;
+      rot = -Math.PI / 2 - hd;
       const la = (p.lookAhead || 5) * m.clamp(spd / 18, 0, 1.4);
       /* ball-bias: lean the look point toward a far ball so both stay framed.
          The look point sits ON the car→ball line. Baseline lean 0.55 (ball
@@ -162,9 +166,19 @@ RTL.camera = (function (C, m) {
     let dRot = rot - (cam.rot != null ? cam.rot : rot);
     while (dRot > Math.PI) dRot -= Math.PI * 2;
     while (dRot < -Math.PI) dRot += Math.PI * 2;
+    /* RACING CHASE rotation rate: the car MUST stay facing up-screen while
+       steering. Car yaw rate while turning hard at speed reaches ~3.5-4 rad/s
+       (measured: cap 2.8 lagged to 0.84 rad = 48 deg nose-off during sustained
+       turns — that reads as "car doesn't face forward"). CAR cap raised to
+       4.5 rad/s: tracks a max-rate turn with < 0.1 rad lag. The flip deadzone
+       still catches spin-outs, and the cap itself prevents whip. */
     const maxRate = cam.mode === "BALL"
       ? m.clamp(0.55 + Math.abs(dRot) * 4, 0.55, 4)
-      : 2.8;  // rad/s cap
+      : m.clamp(6.5 + Math.abs(dRot) * 2, 6.5, 10);  // racing chase: cap
+              // scales with the deficit so the nose NEVER lags visibly
+              // (6.5 base tracked 44deg behind in full-lock circles; error-
+              // scaled term closes any deficit within ~0.2s). Still bounded,
+              // so flip/spin spikes can't whip the frame (deadzone below).
     /* flip deadzone: a sustained car spin can outrun the cap and leave the
        view a half-turn behind (measured: rot wound to 133 rad, car off-frame
        for tens of seconds while unwinding at 2.8 rad/s). Near-full-reversal

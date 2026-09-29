@@ -88,8 +88,19 @@ RTL.sim = (function (C, m, W) {
           // accelerate velocity toward the desired direction
           car.vx += nx * C.CAR_ACCEL * dt;
           car.vy += ny * C.CAR_ACCEL * dt;
-          // face movement direction
-          car.heading = Math.atan2(ny, nx);
+          // face movement direction — SMOOTHED (racing feel): the nose swings
+          // toward the move direction at up to ~7 rad/s instead of snapping
+          // instantly. Instant facing made the car yaw at 8-35 rad/s (spin
+          // frames), which no chase camera can track — the root cause of the
+          // 37-43deg camera lag in full-lock turns. A smoothed nose keeps the
+          // car readable, gives drift character, and drops max yaw rate below
+          // the camera's tracking speed.
+          const targetH = Math.atan2(ny, nx);
+          let dh = targetH - car.heading;
+          while (dh > Math.PI) dh -= Math.PI * 2;
+          while (dh < -Math.PI) dh += Math.PI * 2;
+          const yawCap = 7 * dt;
+          car.heading += Math.max(-yawCap, Math.min(yawCap, dh));
           // clamp speed
           const sp2 = Math.hypot(car.vx, car.vy);
           if (sp2 > wantSpeed) { car.vx = car.vx / sp2 * wantSpeed; car.vy = car.vy / sp2 * wantSpeed; }

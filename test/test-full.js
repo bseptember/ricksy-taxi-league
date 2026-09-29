@@ -122,7 +122,7 @@ RTL.camera.setMode(cam, "BALL");
 RTL.camera.update(cam, cars[0], ball, 0.016, { w: 800, h: 600 });
 ok(Number.isFinite(cam.ox) && cam.mode === "BALL", "BALL cam update finite");
 RTL.camera.toggle(cam);
-ok(cam.mode === "TUNNEL", "toggle cycles to TUNNEL");
+ok(cam.mode === "CAR", "toggle cycles back to CAR (TUNNEL retired from cycle)");
 
 /* ---- events ---- */
 const g = RTL.events.goal({ score: {} }, "blue", 28);
