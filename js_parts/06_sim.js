@@ -491,6 +491,10 @@ RTL.sim = (function (C, m, W) {
         /* impulse: car velocity along normal drives the ball */
         const cvn = car.vx * nxn + car.vy * nyn;
         const bvn = ball.vx * nxn + ball.vy * nyn;
+        /* velocity BEFORE the impulse — a save is defined by the ball having
+           been heading at this car's OWN goal before the deflection */
+        const preVx = ball.vx, preVy = ball.vy;
+        const preSpeed = Math.hypot(preVx, preVy);
         if (cvn > bvn - 0.5) {
           const j = Math.max(0, cvn - bvn) * 1.15 + 2.2;
           ball.vx += nxn * j + car.vx * 0.25;
@@ -500,6 +504,18 @@ RTL.sim = (function (C, m, W) {
           const impact = Math.hypot(ball.vx, ball.vy);
           pushEvent(match, { type: "kick", who: car.id, hard: impact > 24 });
           if (impact > 30) pushEvent(match, { type: "shot", team: car.team });
+          /* SAVE DETECTION. main has always handled a "save" event and shows a
+             "WHAT A SAVE!" banner, but nothing ever emitted one, so the banner
+             was unreachable dead UI. A save = a defender touching a ball that
+             was already travelling toward its OWN goal, near that goal, and
+             fast enough to have been dangerous. */
+          const goalY = car.team === "orange" ? 0 : C.PITCH_H;
+          const incoming = (goalY - ball.y) * preVy > 0;   // was heading at us
+          const deflected = (goalY - ball.y) * ball.vy <= 0; // now heading away
+          const nearOwn = Math.abs(ball.y - goalY) < 34;
+          if (incoming && deflected && nearOwn && preSpeed > 10) {
+            pushEvent(match, { type: "save", team: car.team, who: car.id });
+          }
         }
         /* dodge: carrying car loses the ball on hard contact */
         if (car.carrying && Math.abs(cvn - bvn) > 6) releaseCarry(car, ball, 3);

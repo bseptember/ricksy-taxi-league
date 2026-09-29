@@ -75,6 +75,7 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
   const trail = [];
   let rng = m.rngFrom(match.seed);
   let acc = 0, lastT = 0, timeNow = 0;
+  let hitStopT = 0;   // seconds of frozen simulation remaining (impact juice)
   let aiTimer = 0, aiInput = freshInput();
   function freshInput() {
     return { throttle: 0, steer: 0, boost: false, jump: false, jumpEdge: false,
@@ -231,7 +232,12 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
            shake — a 30 m/s rocket into the ball was completely mute. */
         audio.play("kick");
         spawnFx("spark", ball.x, ball.y, 0.5, e.hard ? 9 : 4);
-        if (e.hard) { camState.shakeT = 0.22; camState.shakeAmp = 4.5; }
+        if (e.hard) {
+          camState.shakeT = 0.22; camState.shakeAmp = 4.5;
+          /* hit-stop scales with the hit so a rocket feels different from a nudge */
+          const spd = Math.hypot(ball.vx, ball.vy);
+          hitStopT = spd > 40 ? 0.09 : 0.055;
+        }
       } else if (e.type === "jump") {
         audio.play("jump");
       } else if (e.type === "kickoff") {
@@ -502,10 +508,18 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
       acc += dt;
       acc = Math.min(acc, C.FIXED_DT * 12);
       let steps = 0;
-      while (acc >= C.FIXED_DT && steps < 12) {
-        simTick(C.FIXED_DT);
-        acc -= C.FIXED_DT; steps++;
-        if (S.screen !== "playing") break; // match ended inside tick
+      /* HIT-STOP: on a big hit, drop a few sim ticks so the impact lands with
+         weight. Implemented as SKIPPED TICKS, never a scaled dt — scaling dt
+         would make the simulation input-rate dependent and break determinism
+         (see the deterministic-test flags in docs/CONTRACT.md). */
+      if (hitStopT > 0) {
+        hitStopT -= dt;
+      } else {
+        while (acc >= C.FIXED_DT && steps < 12) {
+          simTick(C.FIXED_DT);
+          acc -= C.FIXED_DT; steps++;
+          if (S.screen !== "playing") break; // match ended inside tick
+        }
       }
       stepFx(dt);
       computeGuide();
