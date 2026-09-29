@@ -85,7 +85,7 @@ console.log("Loaded RTL v" + RTL.VERSION + " with modules:", Object.keys(RTL).jo
 RTL.spr._makeCanvas = (w, h) => ({ width: w, height: h, getContext: () => fakeCtx() });
 RTL.spr.bake();
 ok(RTL.spr._cache.taxi_blue && RTL.spr._cache.taxi_blue.length === 1, "taxi_blue baked");
-ok(RTL.spr._cache.ball.length === 3, "ball has 3 frames");
+ok(RTL.spr._cache.ball.length === 4, "ball has 4 frames");
 ok(RTL.spr._cache.billboard_shisanyama, "shisanyama billboard baked");
 
 /* ---- drawScene with fake ctx ---- */

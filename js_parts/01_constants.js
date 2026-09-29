@@ -97,20 +97,24 @@ const RTL = {
   C.FX_POOL = 220;                // pooled particles
   C.TRAIL_LENGTH = 22;            // ball trail points
 
-  /* ---- Palette (retro, warm Mzansi afternoon) ---- */
+  /* ---- Palette (POP ART Mzansi: saturated sunset + hot pitch) ---- */
   C.COLORS = {
-    grassA: "#2f8f3f", grassB: "#2a8238", grassLine: "#e8f4e0",
-    sky: "#1a1433", skyLow: "#33194d",
-    blue: "#3aa0ff", blueDark: "#1f6fc4", orange: "#ff8a2a", orangeDark: "#d16a15",
-    taxiBlueBody: "#2f7fe0", taxiBlueRoof: "#8fd0ff",
-    taxiOrangeBody: "#f07818", taxiOrangeRoof: "#ffd090",
-    tyre: "#20242c", rim: "#cfd6e0",
-    ball: "#f2ede2", ballPatch: "#c23a3a",
-    board: "#20242c", boardText: "#ffd60a",
-    crowd: ["#e8d8b0", "#c9a86a", "#a86a3a", "#f0f0e8", "#d04040", "#4080e0", "#f0c040"],
-    night: "#0d0a1a",
-    ui: "#0e1a2a", uiPanel: "#132238", uiInk: "#eaf4ff", uiDim: "#8fa8c8",
-    accent: "#ffd60a", danger: "#ff4a4a", good: "#2ee66b",
+    grassA: "#3ecf5a", grassB: "#2fa347", grassLine: "#ffffff",
+    sky: "#2b1055", skyLow: "#ff7b00",
+    skyMid: "#e0447a",
+    blue: "#37b6ff", blueDark: "#1668b8", orange: "#ff8c1a", orangeDark: "#d16a15",
+    taxiBlueBody: "#37a6ff", taxiBlueRoof: "#d9f2ff",
+    taxiOrangeBody: "#ff8c1a", taxiOrangeRoof: "#ffe0a8",
+    tyre: "#14161c", rim: "#f4f7fb",
+    ball: "#ffffff", ballPatch: "#181a20",
+    board: "#14161c", boardText: "#ffd60a",
+    crowd: ["#ffd23f", "#ff5d8f", "#3fa7ff", "#8ce04a", "#ffffff", "#ff8c1a", "#b06cff"],
+    night: "#1a0f3a",
+    sun: "#ffd23f", sunHalo: "#ff9e2c",
+    skyline: "#241145", skylineLit: "#ffd23f",
+    ui: "#161033", uiPanel: "#241a4d", uiInk: "#ffffff", uiDim: "#c8b8ff",
+    accent: "#ffd23f", danger: "#ff4a6a", good: "#3ee66b",
+    pitchShadow: "rgba(20,10,40,.25)",
   };
 
   /* ---- Billboards (original fake SA brands, cheeky not real) ---- */

@@ -36,39 +36,54 @@ RTL.render = (function (C, m, W, S) {
   /* ================= scene pieces ================= */
 
   function drawSky(ctx, view) {
+    /* POP-ART SUNSET: purple top -> hot pink -> orange blaze at the horizon */
     const g = ctx.createLinearGradient(0, 0, 0, view.h);
     g.addColorStop(0, C.COLORS.sky);
-    g.addColorStop(0.6, C.COLORS.skyLow);
-    g.addColorStop(1, "#4a1f66");
+    g.addColorStop(0.55, C.COLORS.skyMid || "#e0447a");
+    g.addColorStop(0.85, C.COLORS.skyLow);
+    g.addColorStop(1, "#ffb347");
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, view.w, view.h);
 
-    /* sun/moon */
-    const sx = view.w * 0.78, sy = view.h * 0.12;
-    ctx.fillStyle = "rgba(255,214,10,.9)";
-    ctx.beginPath(); ctx.arc(sx, sy, 26, 0, m.TAU); ctx.fill();
-    ctx.fillStyle = "rgba(255,159,28,.35)";
-    ctx.beginPath(); ctx.arc(sx, sy, 40, 0, m.TAU); ctx.fill();
+    /* fat pop-art sun with banded halo (poster style, no blur) */
+    const sx = view.w * 0.78, sy = view.h * 0.16;
+    ctx.fillStyle = "rgba(255,158,44,.30)";
+    ctx.beginPath(); ctx.arc(sx, sy, 58, 0, m.TAU); ctx.fill();
+    ctx.fillStyle = "rgba(255,158,44,.55)";
+    ctx.beginPath(); ctx.arc(sx, sy, 44, 0, m.TAU); ctx.fill();
+    ctx.fillStyle = C.COLORS.sun || "#ffd23f";
+    ctx.beginPath(); ctx.arc(sx, sy, 30, 0, m.TAU); ctx.fill();
+    /* retro sun slats (synthwave poster look, pure fillRect = fast) */
+    ctx.fillStyle = "rgba(255,123,0,.55)";
+    for (let i = 0; i < 4; i++) {
+      const yy = sy + 6 + i * 7;
+      ctx.fillRect(sx - 30, yy, 60, 2 + i);
+    }
   }
 
   function drawSkyline(ctx, view) {
-    /* distant township roofs silhouette above the far touchline */
+    /* distant township roofs silhouette above the far touchline —
+       pop-art: deep purple shapes with hot yellow window lights */
     const baseV = m.iso(0, 0, 0);
     const baseY = view.cam.oy + baseV.v * view.cam.zoom;
     const y0 = Math.min(baseY - 40, view.h * 0.42);
-    ctx.fillStyle = "#241539";
+    ctx.fillStyle = C.COLORS.skyline || "#241145";
     for (let i = -1; i < 24; i++) {
       const bw = 60 + ((i * 53) % 70);
       const bh = 26 + ((i * 71) % 60);
       const bx = ((i * 140) % (view.w + 200)) - 100;
       ctx.fillRect(bx, y0 - bh, bw, bh);
+      /* corrugated roof pop line */
+      ctx.fillStyle = "rgba(255,210,63,.22)";
+      ctx.fillRect(bx, y0 - bh, bw, 3);
+      ctx.fillStyle = C.COLORS.skyline || "#241145";
     }
-    /* window dots */
-    ctx.fillStyle = "rgba(245,197,66,.4)";
-    for (let i = 0; i < 40; i++) {
+    /* window dots — brighter, chunkier */
+    ctx.fillStyle = C.COLORS.skylineLit || "#ffd23f";
+    for (let i = 0; i < 56; i++) {
       const wx = ((i * 197) % (view.w + 100)) - 50;
-      const wy = y0 - 20 - ((i * 113) % 50);
-      ctx.fillRect(wx, wy, 3, 4);
+      const wy = y0 - 22 - ((i * 113) % 52);
+      ctx.fillRect(wx, wy, 4, 5);
     }
   }
 
@@ -140,7 +155,8 @@ RTL.render = (function (C, m, W, S) {
     ctx.closePath();
     ctx.fill();
 
-    /* mow stripes (10 bands along Y) */
+    /* mow stripes (10 bands along Y) + pop: alternate stripe gets a
+       sun-glow tint near the horizon side for depth */
     ctx.fillStyle = C.COLORS.grassB;
     const band = C.PITCH_H / 10;
     for (let b = 0; b < 10; b += 2) {
@@ -353,12 +369,13 @@ RTL.render = (function (C, m, W, S) {
       const bp0 = m.project(view.guides.landX, view.guides.landY, 0, cam, s1);
       void bp0;
     }
-    /* ball shadow + ball */
+    /* ball shadow + ball (pop: chunkier ball — draw at 1.25x sprite scale
+       and 4-frame spin keyed to distance travelled) */
     const sh = m.project(view.ball.x, view.ball.y, 0, cam, s1);
     S.shadow(ctx, "ball", sh.x, sh.y, sc);
     const pr = m.project(view.ball.x, view.ball.y, view.ball.z, cam, s1);
-    const roll = Math.floor((view.ball.x + view.ball.y) * 1.4) % 3;
-    S.draw(ctx, "ball", pr.x, pr.y, { frame: roll, scale: sc });
+    const roll = Math.floor((view.ball.x + view.ball.y) * 1.1) % 4;
+    S.draw(ctx, "ball", pr.x, pr.y, { frame: roll, scale: Math.round(sc * 1.25) });
   }
 
   function drawFx(ctx, view) {

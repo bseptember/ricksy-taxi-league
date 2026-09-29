@@ -19,24 +19,26 @@ RTL.spr = (function (C, m) {
 
   /* ---- palette ---- */
   const PAL = {
-    k: "#20242c",        // tyre / outline
-    d: "#101318",        // dark outline
-    r: "#cfd6e0",        // rim
-    g: "#3aa0ff", G: "#1f6fc4", s: "#8fd0ff",   // blue taxi: body/dark/sky
-    o: "#f07818", O: "#d16a15", t: "#ffd090",   // orange taxi
-    y: "#ffd60a",        // yellow stripe
-    w: "#f2ede2", W: "#c9c2b2",                  // ball
-    p: "#c23a3a",        // ball patch
-    n: "#e8f4e0",        // net / lines
-    v: "#2ee66b",        // glow green
-    c: "#ff3d8b",        // confetti pink
-    b: "#00e5ff",        // confetti cyan
-    f: "#ff9f1c",        // flame orange
+    k: "#14161c",        // tyre / outline
+    d: "#0c0e12",        // dark outline
+    r: "#f4f7fb",        // rim
+    g: "#37a6ff", G: "#1668b8", s: "#d9f2ff",   // blue taxi: body/dark/roof
+    o: "#ff8c1a", O: "#d16a15", t: "#ffe0a8",   // orange taxi
+    y: "#ffd23f",        // yellow stripe
+    w: "#ffffff", W: "#d8dbe2",                   // ball white / shade
+    p: "#181a20",        // ball patch (pop black)
+    n: "#ffffff",        // net / lines
+    v: "#3ee66b",        // glow green
+    c: "#ff5d8f",        // confetti pink
+    b: "#3fa7ff",        // confetti cyan
+    f: "#ff9e2c",        // flame orange
     e: "#8a5a2a",        // tree trunk brown
-    l: "#2a8238", L: "#2f8f3f", h: "#59a84a",   // tree greens
-    x: "#5a6472",        // concrete
-    z: "#8fa8c8",        // steel grey
+    l: "#2fa347", L: "#3ecf5a", h: "#5adf6e",   // tree greens (bright)
+    x: "#6a7482",        // concrete
+    z: "#aebfd4",        // steel
     q: "#1d4a70",        // dark water blue
+    m: "#ff5d8f",        // pop magenta accent
+    u: "#b06cff",        // pop purple accent
   };
 
   /* ---- string map sprite definitions ----
@@ -44,40 +46,54 @@ RTL.spr = (function (C, m) {
      ' ' = transparent */
   const MAPS = {};
 
-  /* ---- taxi: 26x14 per frame, 4 frames (0-1 drive, 2 turn, 3 boost flame) ---- */
+  /* ---- taxi: 30x16 per frame — bold pop-art minibus, thick outline ---- */
   function taxiMap(body, dark, skyCol) {
     return [
-      "          dddddddd        ",
-      "         d" + skyCol + skyCol + skyCol + skyCol + skyCol + skyCol + "d       ",
-      "         d" + skyCol + "dd" + skyCol + "dd" + skyCol + "d       ",
-      "      dddd" + skyCol + "dd" + skyCol + "dd" + skyCol + "dddd    ",
-      "     d" + body + body + body + "dddddddddd" + body + body + "d   ",
-      "    d" + body + body + body + body + body + body + body + body + body + body + body + body + body + body + body + "d  ",
-      "   d" + body + body + body + body + body + body + body + body + body + body + body + body + body + body + body + body + "d  ",
-      "   d" + body + "yyyyyyy" + body + body + "yyyyy" + body + "d  ",
-      "   d" + body + body + body + body + body + body + body + body + body + body + body + body + body + body + body + body + "d  ",
-      "   d" + dark + dark + dark + dark + dark + dark + dark + dark + dark + dark + dark + dark + dark + dark + dark + "d  ",
-      "    dd kk dd   dd kk dd  ",
-      "      dkkd      dkkd     ",
-      "      drrd      drrd     ",
-      "       dd        dd      ",
+      "          ddddddddddddd       ",
+      "        dd" + skyCol + skyCol + skyCol + skyCol + skyCol + skyCol + skyCol + skyCol + skyCol + skyCol + "dd      ",
+      "       d" + skyCol + skyCol + "d" + skyCol + skyCol + "dd" + skyCol + skyCol + "dd" + skyCol + skyCol + "dd" + skyCol + skyCol + "d     ",
+      "       d" + skyCol + skyCol + "d" + skyCol + skyCol + "dd" + skyCol + skyCol + "dd" + skyCol + skyCol + "dd" + skyCol + skyCol + "d     ",
+      "    dddd" + skyCol + skyCol + "d" + skyCol + skyCol + "dd" + skyCol + skyCol + "dd" + skyCol + skyCol + "dd" + skyCol + skyCol + "dddd   ",
+      "   d" + body + body + body + body + "dd" + skyCol + skyCol + "dddddddddddd" + skyCol + skyCol + "dd" + body + "d  ",
+      "  d" + body + body + body + body + body + body + body + body + body + body + body + body + body + body + body + body + body + body + body + body + body + body + "d ",
+      "  d" + body + body + body + body + body + body + body + body + body + body + body + body + body + body + body + body + body + body + body + body + body + body + "d ",
+      "  d" + body + "yyyyy" + body + "d" + "yyyyy" + "d" + body + body + "yyyyy" + body + "d" + "yyyyy" + body + body + "d ",
+      "  d" + body + "yyyyy" + body + "d" + "yyyyy" + "d" + body + body + "yyyyy" + body + "d" + "yyyyy" + body + body + "d ",
+      "  d" + body + body + body + body + body + body + body + body + body + body + body + body + body + body + body + body + body + body + body + body + body + body + "d ",
+      "  d" + dark + dark + dark + dark + dark + dark + dark + dark + dark + dark + dark + dark + dark + dark + dark + dark + dark + dark + dark + dark + dark + dark + "d ",
+      "   dd kk dd    dd kk dd   ",
+      "     dkkd        dkkd     ",
+      "     drrd        drrd     ",
+      "      dd          dd      ",
     ];
   }
-  MAPS.taxi_blue = { rows: taxiMap("g", "G", "s"), fw: 26, fh: 14, frames: 1 };
-  MAPS.taxi_orange = { rows: taxiMap("o", "O", "t"), fw: 26, fh: 14, frames: 1 };
+  MAPS.taxi_blue = { rows: taxiMap("g", "G", "s"), fw: 30, fh: 16, frames: 1 };
+  MAPS.taxi_orange = { rows: taxiMap("o", "O", "t"), fw: 30, fh: 16, frames: 1 };
 
-  /* ---- ball: 7x7, 3 rotation frames ---- */
+  /* ---- ball: 11x11, 4 rotation frames — classic B&W soccer ball, bold ---- */
   MAPS.ball = {
-    frames: 3, fw: 7, fh: 7,
-    rowsFn: (f) => [
-      "  www  ",
-      " w" + (f === 1 ? "p" : "w") + "wwp w".slice(0, 4) + " w",
-      "wwpwww" + (f === 2 ? "p" : "w"),
-      "wwwwwpw".slice(0, 7),
-      "wwwpwww".slice(0, 7),
-      " w" + (f === 2 ? "p" : "w") + "www ",
-      "  www  ",
-    ],
+    frames: 4, fw: 11, fh: 11,
+    rowsFn: (f) => {
+      /* pentagon patches rotate across frames for visible spin */
+      const pats = [
+        ["    ppp    ", "   ppppp   ", "   ppppp   ", "    ppp    "],
+        ["  pp       ", " pppp  pp  ", "  ppppppp  ", "      ppp  "],
+        ["       pp  ", " pp  pppp  ", "  ppppppp  ", "  ppp      "],
+        [" pp        ", "pppp  pp   ", " pppppppp  ", "    ppp    "],
+      ];
+      const q = pats[f % 4];
+      return [
+        "   wwwww   ",
+        "  ww" + q[0] + "ww  ",
+        " ww" + q[1].slice(0, 7) + "ww ",
+        "ww" + q[2].slice(0, 9) + "ww",
+        "w" + q[3].slice(0, 5) + "ww" + q[3].slice(0, 4) + "w",
+        "ww" + q[1].slice(2, 9) + "ww",
+        " ww" + q[2].slice(1, 8) + "ww ",
+        "  ww" + q[0].slice(1, 8) + "w  ",
+        "   wwwww   ",
+      ].map(r => (r + "           ").slice(0, 11));
+    },
   };
 
   /* ---- goal: 46x22 (posts + net crosshatch) ---- */

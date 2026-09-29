@@ -68,13 +68,14 @@ RTL.camera = (function (C, m) {
       rot = (p.rot != null) ? p.rot : -Math.PI / 4;
       const la = (p.lookAhead || 5) * m.clamp(spd / 18, 0, 1.4);
       /* ball-bias: lean the look point toward a far ball so both stay framed.
-         ALIGNED-BY-DISTANCE (not additive): the old additive vector (look-ahead
-         + bias) over-shot when the ball was far AHEAD — look point landed
-         ~22u in front and the car settled at fy 1.15 (measured 3-min gate,
-         20% of a window off-frame). Here the look point always sits ON the
-         car→ball line at lean·bd: lean 0.55 with the ball behind (needs a
-         big lean), easing to 0.30 when the ball is dead ahead (additive's
-         failure mode), so the car keeps bottom-third room at any range. */
+         The look point sits ON the car→ball line. Baseline lean 0.55 (ball
+         behind, needs a big lean) easing to 0.30 (ball dead ahead).
+         CALM PASS 8 (final): extreme-range boost — look point converges to
+         2/3 of the way toward the ball, NOT onto it. At bd 65 with zoom
+         floor 11.7 the car+ball pair spans ~0.70 screen heights; look-on-ball
+         pushed the car off the TOP. Look at 2/3 splits the seesaw: ballFy
+         ~0.85, carFy ~0.15 — both on-screen, and car-drifting-to-edge is the
+         reference game's exact documented behavior. */
       let bx = 0, by = 0, bdl = 0;
       if (ball) {
         const bdx = ball.x - target.x, bdy = ball.y - target.y;
@@ -83,7 +84,9 @@ RTL.camera = (function (C, m) {
           const fx = Math.cos(hd), fy = Math.sin(hd);
           const behind = (bdx * fx + bdy * fy) / bdl; // +1 behind, -1 ahead
           const lean = 0.55 + (0.30 - 0.55) * m.clamp((-behind + 1) / 2, 0, 1);
-          const k = m.clamp((bdl - 6) / 18, 0, 1) * lean;
+          const distBoost = m.clamp((bdl - 25) / 40, 0, 1);
+          const leanEff = lean + (0.67 - lean) * distBoost;
+          const k = leanEff * (0.45 + 0.55 * m.clamp((bdl - 10) / 50, 0, 1));
           bx = bdx * k; by = bdy * k;
         }
       }
@@ -99,13 +102,52 @@ RTL.camera = (function (C, m) {
          bd ~20 driving-away geometry; 0.55 lands every case <= ~0.97
          settled with car >= ~0.13 fy. */
       const bd = ball ? bdl : 0;
-      const outF = m.clamp(1 - (bd - 14) / 60, 0.5, 1);
-      const cap = (view.h * 0.55) / ((bd + 2) * sq);
+      /* CALM BREATHING pass 4 — MEASURED RESOLUTION of the calm-vs-framing
+         trade: with the zoom floor at 0.72x (calm, swing 1.35x) a ball punted
+         to bd 70 sits at fy 1.78 (off bottom). The lean look-point cannot
+         reach it (look point is bounded on the car->ball line). His game's
+         answer: zoom IS the escape valve, but it breathes smoothly and comes
+         BACK. So: floor 0.55 (allows 26 -> ~14 at extreme range) but the
+         return is clamped to a gentle zoom-IN rate so it can never whoosh.
+         Off-bottom at 70u for a couple of seconds while driving away is
+         acceptable (ball guides show the landing marker); permanent 2.2x
+         zoom oscillation is not. */
+      const outF = m.clamp(1 - (bd - 14) / 60, 0.55, 1);
+      /* anchor-aware fit-cap: the anchor leaves anchorY of the screen ABOVE
+         the look point, so the ball-fit budget is (1 - anchorY + lean slack).
+         Measured (geochk): mid-25u car-driven ball at 1.02, far-65u at 1.17 —
+         both push past the frame because the old 0.55 budget vs 0.62 anchor
+         + ball height + lean lag never fit. Budget 0.5 with anchor 0.62
+         lands ball <= ~0.95 in the driven cases; car stays framed by lean. */
+      const cap = (view.h * 0.5) / ((bd + 2) * sq);
       const tz = Math.min(
         p.zoom * adapt * outF * (1 - m.clamp((spd - 20) / 60, 0, 0.1)),
         cap
       );
-      cam.zoom = m.damp(cam.zoom || tz, tz, 4, dt);
+      /* zoom-IN rate limiter (calm pass 5): zoom-OUT is instant-ish (framing
+         safety, max 8 u/s measured) but zoom-IN is capped hard at 3.5 u/s so
+         the camera eases back gently after a far-ball pull-out — no whoosh.
+         (Pass 4 bug: limiter compared `nz > prev` after the damp step, which
+         is always true when tz>prev, so the 6 u/s clamp applied to the damp
+         STEP not the rate — zoom-out ran away to 6.2. Fixed: explicit rate
+         clamp in zoom-units/second, both directions bounded.)
+         Pass 6: zoom-OUT floor — the camera may never go below 0.45x of
+         base (26 -> 11.7 floor). At bd 72 the fit-cap wants 5.7 (taxi sprite
+         becomes unreadable); the lean look-point keeps the ball framed well
+         enough at 11.7 (bfy ~1.3 transient), and 25->11.7 = 2.2x only in the
+         extreme corner case — normal play swings ~1.3x. */
+      const prev = cam.zoom || tz;
+      let nz = prev + (tz - prev) * Math.min(1, 2.6 * dt);
+      /* zoom-OUT also rate-limited (calm pass 9): the 9 u/s out-rate let the
+         fit-cap dive 25 -> 12 in ~1.5s during a boost-punt (measured bfy
+         1.28 transient at 4-5s). Zoom-out capped at 4.5 u/s: reaches the far
+         framing in ~2.5s but never lunges. Zoom-in stays 3.5 u/s. */
+      const dzMax = nz > prev ? 3.5 : 4.5;
+      const dz = nz - prev;
+      if (Math.abs(dz) > dzMax * dt) nz = prev + Math.sign(dz) * dzMax * dt;
+      const zoomFloor = p.zoom * adapt * 0.45;
+      if (nz < zoomFloor) nz = zoomFloor;
+      cam.zoom = nz;
     }
 
     cam.sq = sq;
@@ -140,12 +182,16 @@ RTL.camera = (function (C, m) {
     const ry = (lookX * s + lookY * c) * sq - lookZ;
     const ptx = view.w / 2 - rx * cam.zoom, pty = anchorY - ry * cam.zoom;
     const perr = Math.max(Math.abs(ptx - (cam.ox || 0)), Math.abs(pty - (cam.oy || 0)));
-    /* 0.18 window (was 0.28): with lazy base 2.3 the soft zone let the pan
-       trail too far before catch-up engaged -> ball fy 1.196 for ~1.5s on
-       boosted away-drives (measured). 0.18*h engages catch-up sooner; the
-       soft-zone rate itself is untouched (the lazy feel lives there). */
+    /* SMOOTH CATCH-UP (wobble fix): the old hard regime switch (2.3 -> 42 as
+       `big` saturates) read as a violent lurch every time the soft zone
+       overflowed. Now: smooth exponential curve, gentle top speed.
+       CALM PASS 7b: base raised 2.3 -> 3.4 and catch-up top 14 -> 22 — the
+       far-ball lean moves the look point 30-40u; at pan rate 2.3 the camera
+       took ~3s to follow it, so the ball sat at fy 1.28 the whole time
+       (measured). 3.4 base still reads lazy at close range, catch-up covers
+       the big leans. */
     const big = m.clamp(perr / (view.h * 0.18), 0, 1);
-    const panRate = C.PAN_DAMP + 40 * big * big;
+    const panRate = 3.4 + 22 * big * big;
     cam.ox = m.damp(cam.ox || 0, ptx, panRate, dt);
     cam.oy = m.damp(cam.oy || 0, pty, panRate, dt);
 

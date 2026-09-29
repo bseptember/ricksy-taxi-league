@@ -55,13 +55,29 @@ RTL.ui = (function (C, m) {
 
   function button(ctx, str, x, y, w, h, focused, opts) {
     const o = opts || {};
-    panel(ctx, x, y, w, h, {
-      bg: focused ? (o.focusBg || "#1d4a70") : (o.bg || "#132238"),
-      borderColor: focused ? C.COLORS.accent : "rgba(255,255,255,.16)",
-      alpha: o.alpha,
-    });
+    /* POP-ART BUTTONS: chunky offset shadow slab, hot fill, thick border.
+       Focused = sunshine yellow w/ magenta border; idle = deep purple w/ cyan edge. */
+    const c = 6;
+    const slab = (px, py, bg, border, lw) => {
+      ctx.save();
+      ctx.fillStyle = bg;
+      ctx.beginPath();
+      ctx.moveTo(px + c, py); ctx.lineTo(px + w - c, py);
+      ctx.lineTo(px + w, py + c); ctx.lineTo(px + w, py + h - c);
+      ctx.lineTo(px + w - c, py + h); ctx.lineTo(px + c, py + h);
+      ctx.lineTo(px, py + h - c); ctx.lineTo(px, py + c);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = border; ctx.lineWidth = lw; ctx.stroke();
+      ctx.restore();
+    };
+    /* drop slab (offset shadow — pop poster depth, no blur) */
+    slab(x + 4, y + 5, "rgba(10,6,26,.9)", "rgba(10,6,26,.9)", 2);
+    slab(x, y,
+      focused ? (o.focusBg || C.COLORS.accent) : (o.bg || C.COLORS.uiPanel),
+      focused ? (C.COLORS.danger || "#ff4a6a") : "rgba(63,167,255,.75)",
+      focused ? 3 : 2);
     textShadow(ctx, str, x + w / 2, y + h / 2 - o.size / 2, o.size || 10,
-      focused ? "#ffffff" : (o.color || C.COLORS.uiDim), "center");
+      focused ? "#1a0f3a" : "#ffffff", "center");
   }
 
   /* ---------- HUD (in-match) ---------- */
