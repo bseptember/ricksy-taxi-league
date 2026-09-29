@@ -168,9 +168,14 @@ RTL.sim = (function (C, m, W) {
       if (inp.steer) {
         const spdFrac = m.clamp(Math.abs(along) / C.CAR_MAX_SPEED, 0, 1);
         const turnRate = C.CAR_TURN_RATE + (C.CAR_TURN_RATE_HIGH - C.CAR_TURN_RATE) * spdFrac;
-        car.heading += inp.steer * turnRate * dt;
+        const dHead = inp.steer * turnRate * dt;
+        car.heading += dHead;
+        /* ground yaw rate — the AI damper reads this to stop sawing */
+        car.angVel = dHead / dt;
         const nfx = Math.cos(car.heading), nfy = Math.sin(car.heading);
         fx = nfx; fy = nfy;   /* along/lat* are basis-INDEPENDENT scalars */
+      } else {
+        car.angVel = 0;
       }
 
       /* --- jump --- */
@@ -287,14 +292,27 @@ RTL.sim = (function (C, m, W) {
         /* damp the into-wall velocity, keep along-wall velocity */
         if (cl.nx !== 0) car.vx *= 0.55;
         if (cl.ny !== 0) car.vy *= 0.55;
-        /* moveVec input slides along the wall (tangential) */
+        /* slide ALONG the wall (tangential). moveVec is the classic path, but
+           the AI/classic path has none — measured: the bot got pinned in a
+           corner grinding at 0 m/s for the rest of the match. Fall back to
+           projecting the car's heading onto the wall tangent. */
+        const tx = cl.nx !== 0 ? 0 : 1, ty = cl.ny !== 0 ? 0 : 1;
+        const hf = Math.cos(car.heading) * tx + Math.sin(car.heading) * ty;
+        let slide;
         if (inp.moveVec) {
-          const tx = cl.nx !== 0 ? 0 : 1, ty = cl.ny !== 0 ? 0 : 1;
-          const slide = (inp.moveVec.x * tx + inp.moveVec.y * ty);
-          if (cl.nx !== 0) car.vx = -cl.nx * Math.abs(car.vx) * 0.9 + 0; // hug
-          if (cl.ny !== 0) car.vy = -cl.ny * Math.abs(car.vy) * 0.9 + 0;
-          car.vx += (cl.nx !== 0 ? 0 : slide * C.CAR_ACCEL * dt);
-          car.vy += (cl.ny !== 0 ? 0 : slide * C.CAR_ACCEL * dt);
+          slide = (inp.moveVec.x * tx + inp.moveVec.y * ty);
+        } else {
+          slide = inp.throttle < -0.05 ? -Math.abs(hf) : Math.abs(hf);
+        }
+        if (cl.nx !== 0) car.vx = -cl.nx * Math.abs(car.vx) * 0.9 + 0; // hug
+        if (cl.ny !== 0) car.vy = -cl.ny * Math.abs(car.vy) * 0.9 + 0;
+        car.vx += (cl.nx !== 0 ? 0 : slide * C.CAR_ACCEL * dt);
+        car.vy += (cl.ny !== 0 ? 0 : slide * C.CAR_ACCEL * dt);
+        /* keep the heading pointed along the wall so the bot can steer out
+           instead of grinding nose-first into the corner */
+        if (Math.abs(hf) > 0.15) {
+          const wantAlong = tx !== 0 ? (hf >= 0 ? 0 : Math.PI) : (hf >= 0 ? Math.PI / 2 : -Math.PI / 2);
+          car.heading = wantAlong;
         }
       } else {
         if (cl.nx !== 0) car.vx *= -0.3;

@@ -69,7 +69,7 @@ RTL.sim = (function (C, m, W) {
     const jumpDown = inp.jumpEdge !== undefined ? !!inp.jumpEdge : !!inp.jump;
     let shotThisStep = false;
 
-    const fx = Math.cos(car.heading), fy = Math.sin(car.heading);
+    let fx = Math.cos(car.heading), fy = Math.sin(car.heading);
     let along = car.vx * fx + car.vy * fy;             // signed forward speed
     let latX = car.vx - fx * along, latY = car.vy - fy * along;
     /* ASSISTED branches write vx/vy directly; the tank recompose below must
@@ -158,13 +158,24 @@ RTL.sim = (function (C, m, W) {
       /* --- GROUND STEERING (was dead code) ---
          CRITICAL FIX: the CLASSIC branch never modified car.heading, so the
          AI (which has no moveVec and always takes this branch) drove in a
-         dead straight line — measured 0.000 rad of heading change per second
-         of full lock. C.CAR_TURN_RATE / CAR_TURN_RATE_HIGH were defined and
-         never read. Turn rate falls off with speed for a planted feel. */
-      {
+         dead straight line. C.CAR_TURN_RATE / CAR_TURN_RATE_HIGH were defined
+         and never read.
+         The velocity basis (fx/fy/along/lat*) was captured BEFORE this block
+         and is reused by the tank recompose at the bottom, so after rotating
+         the heading we must rotate the velocity basis by the SAME delta —
+         otherwise the recompose either undoes the turn (car pirouettes at
+         ~9.6 rad/s, measured) or kills all speed (car frozen, measured). */
+      if (inp.steer) {
         const spdFrac = m.clamp(Math.abs(along) / C.CAR_MAX_SPEED, 0, 1);
         const turnRate = C.CAR_TURN_RATE + (C.CAR_TURN_RATE_HIGH - C.CAR_TURN_RATE) * spdFrac;
-        car.heading += inp.steer * turnRate * dt;
+        const dHead = inp.steer * turnRate * dt;
+        car.heading += dHead;
+        /* ground yaw rate — the AI damper reads this to stop sawing */
+        car.angVel = dHead / dt;
+        const nfx = Math.cos(car.heading), nfy = Math.sin(car.heading);
+        fx = nfx; fy = nfy;   /* along/lat* are basis-INDEPENDENT scalars */
+      } else {
+        car.angVel = 0;
       }
 
       /* --- jump --- */
@@ -281,14 +292,27 @@ RTL.sim = (function (C, m, W) {
         /* damp the into-wall velocity, keep along-wall velocity */
         if (cl.nx !== 0) car.vx *= 0.55;
         if (cl.ny !== 0) car.vy *= 0.55;
-        /* moveVec input slides along the wall (tangential) */
+        /* slide ALONG the wall (tangential). moveVec is the classic path, but
+           the AI/classic path has none — measured: the bot got pinned in a
+           corner grinding at 0 m/s for the rest of the match. Fall back to
+           projecting the car's heading onto the wall tangent. */
+        const tx = cl.nx !== 0 ? 0 : 1, ty = cl.ny !== 0 ? 0 : 1;
+        const hf = Math.cos(car.heading) * tx + Math.sin(car.heading) * ty;
+        let slide;
         if (inp.moveVec) {
-          const tx = cl.nx !== 0 ? 0 : 1, ty = cl.ny !== 0 ? 0 : 1;
-          const slide = (inp.moveVec.x * tx + inp.moveVec.y * ty);
-          if (cl.nx !== 0) car.vx = -cl.nx * Math.abs(car.vx) * 0.9 + 0; // hug
-          if (cl.ny !== 0) car.vy = -cl.ny * Math.abs(car.vy) * 0.9 + 0;
-          car.vx += (cl.nx !== 0 ? 0 : slide * C.CAR_ACCEL * dt);
-          car.vy += (cl.ny !== 0 ? 0 : slide * C.CAR_ACCEL * dt);
+          slide = (inp.moveVec.x * tx + inp.moveVec.y * ty);
+        } else {
+          slide = inp.throttle < -0.05 ? -Math.abs(hf) : Math.abs(hf);
+        }
+        if (cl.nx !== 0) car.vx = -cl.nx * Math.abs(car.vx) * 0.9 + 0; // hug
+        if (cl.ny !== 0) car.vy = -cl.ny * Math.abs(car.vy) * 0.9 + 0;
+        car.vx += (cl.nx !== 0 ? 0 : slide * C.CAR_ACCEL * dt);
+        car.vy += (cl.ny !== 0 ? 0 : slide * C.CAR_ACCEL * dt);
+        /* keep the heading pointed along the wall so the bot can steer out
+           instead of grinding nose-first into the corner */
+        if (Math.abs(hf) > 0.15) {
+          const wantAlong = tx !== 0 ? (hf >= 0 ? 0 : Math.PI) : (hf >= 0 ? Math.PI / 2 : -Math.PI / 2);
+          car.heading = wantAlong;
         }
       } else {
         if (cl.nx !== 0) car.vx *= -0.3;

@@ -85,12 +85,23 @@ RTL.ai = (function (C, m, W) {
       ty = by - (toGoalY / gl) * 1.2;
     }
 
-    /* ------- steering ------- */
+    /* ------- steering -------
+       was: out.steer = clamp(diffAng / 0.5, -1, 1) — this SATURATES at
+       |diffAng| >= 0.5 rad, so the bot held full lock for 1232 of 1440 think
+       calls in a measured match, swerving back and forth without ever
+       converging. Widen the deadband, scale down, and add a yaw-rate damper
+       that opposes the current rotation so it settles instead of oscillating. */
     const dx = tx - me.x, dy = ty - me.y;
     const dist = Math.hypot(dx, dy);
     const want = Math.atan2(dy, dx);
     const diffAng = m.angDiff(me.heading, want);
-    out.steer = m.clamp(diffAng / 0.5, -1, 1);
+    const deadband = 0.18;
+    const mag = Math.abs(diffAng) <= deadband ? 0 : (Math.abs(diffAng) - deadband) / 0.9;
+    let steerCmd = m.clamp(Math.sign(diffAng) * mag, -1, 1);
+    /* damp against existing yaw so the bot settles instead of sawing */
+    const yaw = me.angVel || 0;
+    steerCmd = m.clamp(steerCmd - m.clamp(yaw * 1.2, -0.5, 0.5), -1, 1);
+    out.steer = steerCmd;
     out.throttle = 1 * t.speed;
 
     /* reverse when target is behind and close */
