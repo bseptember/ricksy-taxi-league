@@ -21,11 +21,18 @@ RTL.ai = (function (C, m, W) {
   /**
    * think() — pure. match/cars/ball read-only.
    * Returns {throttle,steer,boost,jump,shoot,carry,brake}
+   *
+   * selfId: which car this brain is driving. It USED to be hardcoded to "AI",
+   * which meant both cars could never be driven by the same brain — every
+   * "AI vs AI" harness ran two cars onto the same target, so they collided
+   * instead of one finishing. Passing "P1" makes the headless suite a real
+   * two-sided match.
    */
-  function think(match, cars, ball, diff, rng, dt) {
+  function think(match, cars, ball, diff, rng, dt, selfId) {
     const out = { throttle: 0, steer: 0, boost: false, jump: false, shoot: false, carry: false, brake: false };
-    const me = cars.find((c) => c.id === "AI");
-    const foe = cars.find((c) => c.id === "P1");
+    const id = selfId || "AI";
+    const me = cars.find((c) => c.id === id);
+    const foe = cars.find((c) => c.id !== id);
     if (!me || me.demo.active) return out;
 
     const t = TUNE[m.clamp(diff | 0, 0, 3)];

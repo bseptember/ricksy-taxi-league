@@ -174,10 +174,15 @@ function testFullMatchSim(RTL) {
   const ball = { x: 34, y: 52.5, z: 0.35, vx: 0, vy: 0, vz: 0, spin: 0, lastTouch: null, guides: [] };
   const rng = RTL.mathx.rngFrom(match.seed);
   let goals = 0, steps = 0, shots = 0, kicks = 0;
+  /* Each car gets its OWN brain via selfId. Both cars previously ran the
+     hardcoded "AI" brain, so they chased the same target, collided, and the
+     match could never be a real two-sided contest. */
+  let p1Timer = 0, aiTimer = 0, p1In = null, aiIn = null;
   while (match.t > 0 && steps < 120 * 310) {
-    const p1 = RTL.ai.think(match, cars, ball, 2, rng, RTL.C.FIXED_DT);
-    const ai = RTL.ai.think(match, cars, ball, 2, rng, RTL.C.FIXED_DT);
-    RTL.sim.step(match, cars, ball, { P1: p1, AI: ai }, RTL.C.FIXED_DT, rng);
+    p1Timer -= RTL.C.FIXED_DT; aiTimer -= RTL.C.FIXED_DT;
+    if (p1Timer <= 0) { p1Timer = 1 / 30; p1In = RTL.ai.think(match, cars, ball, 2, rng, 1 / 30, "P1"); }
+    if (aiTimer <= 0) { aiTimer = 1 / 30; aiIn = RTL.ai.think(match, cars, ball, 2, rng, 1 / 30, "AI"); }
+    RTL.sim.step(match, cars, ball, { P1: p1In, AI: aiIn }, RTL.C.FIXED_DT, rng);
     steps++;
     if (match.state === "goal") {
       goals++;

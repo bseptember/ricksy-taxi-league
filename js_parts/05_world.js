@@ -20,8 +20,13 @@ RTL.world = (function (C, m) {
   function isInsideGoal(x, y, z, team) {
     if (Math.abs(x - GOAL_CX) > GOAL_HALF - C.BALL_RADIUS) return false;
     if (z > C.GOAL_HEIGHT - C.BALL_RADIUS * 0.5) return false;
-    if (team === "blue") return y >= C.PITCH_H;
-    return y <= 0;
+    /* The goal mouth is OPEN, so the ball runs to y = PITCH_H - BALL_RADIUS
+       (104.65) and stops there. The old test demanded y >= PITCH_H (105),
+       which the ball centre can never reach — so a fully-crossed shot never
+       scored. Measured: ball reached 104.7, match ended 0-0. Test at the
+       resting position instead, with a touch of slack for step overshoot. */
+    if (team === "blue") return y >= C.PITCH_H - C.BALL_RADIUS - 0.05;
+    return y <= C.BALL_RADIUS + 0.05;
   }
 
   /** Clamp an entity circle to the pitch boards. Returns {hitWall, nx, ny} with
