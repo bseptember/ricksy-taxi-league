@@ -310,9 +310,14 @@ RTL.spr = (function (C, m) {
     const o = opts || {};
     const img = imgs[name];
     if (img) {
-      const sc = (o.scale || 3) / 3;               // image assets are 3x baked
-      const targetW = o.w || img.width * sc * 0.42; // ~42% = fit legacy box
-      const targetH = o.h || img.height * sc * 0.42;
+      /* Fit the drawn image into the same box the procedural sprite would
+         occupy: procedural frame w*3*scale. AI art is ~930px wide → factor
+         0.115 brings it to the taxi's true size (≈3.4m * 0.707 / 30px * 3 ≈
+         0.24 of raw image per scale unit). Measured in-game: 351px draw was
+         2x too big; 0.115 lands it at ~96px on a zoom-23 screen. */
+      const sc = (o.scale || 3) / 3;
+      const targetW = o.w || img.width * sc * 0.115;
+      const targetH = o.h || img.height * sc * 0.115;
       ctx.save();
       if (o.alpha != null) ctx.globalAlpha = o.alpha;
       if (o.rot) {
