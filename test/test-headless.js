@@ -184,9 +184,18 @@ function testFullMatchSim(RTL) {
     if (aiTimer <= 0) { aiTimer = 1 / 30; aiIn = RTL.ai.think(match, cars, ball, 2, rng, 1 / 30, "AI"); }
     RTL.sim.step(match, cars, ball, { P1: p1In, AI: aiIn }, RTL.C.FIXED_DT, rng);
     steps++;
+    /* The match clock is owned by 13_main, not the sim (06_sim.js:5). Without
+       this the test ran 37200 steps with match.t frozen at 300, never cycling
+       the kickoff/goal-freeze state machine — which is why a real shot could
+       never be converted into a goal event no matter how the AI was tuned. */
+    if (match.state === "play") match.t -= RTL.C.FIXED_DT;
     if (match.state === "goal") {
       goals++;
+      /* reset the play state like main does after the freeze, otherwise the
+         match is stuck in "goal" and no further play is simulated */
       match.stateT = RTL.C.GOAL_FREEZE_SECONDS;
+      match.state = "play";
+      RTL.sim.kickoff(match, cars, ball);
     }
     for (const e of match.events) {
       if (e.type === "shot") shots++;

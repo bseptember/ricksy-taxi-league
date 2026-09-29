@@ -88,8 +88,23 @@ RTL.ai = (function (C, m, W) {
       const gx = W.GOAL_CX, gy = atkGoalY;
       const toGoalX = gx - bx, toGoalY = gy - by;
       const gl = Math.hypot(toGoalX, toGoalY) || 1;
-      tx = bx - (toGoalX / gl) * 1.2;
-      ty = by - (toGoalY / gl) * 1.2;
+      /* INTERCEPTION: lead the ball instead of chasing its present position.
+         Solve for the time the ball reaches the goal-ish line, then aim at
+         where it WILL be. Without this the bot always trails the ball and
+         arrives on the wrong side. */
+      const bv = Math.hypot(ball.vx, ball.vy);
+      let aimX = bx, aimY = by;
+      if (bv > 3) {
+        /* dist is computed in the steering block below, so use the raw gap */
+        const gap = Math.hypot(bx - me.x, by - me.y);
+        const tLead = m.clamp(gap / Math.max(6, t.speed * C.CAR_MAX_SPEED), 0, 1.2);
+        aimX = m.clamp(ball.x + ball.vx * tLead * 0.8, 1, C.PITCH_W - 1);
+        aimY = m.clamp(ball.y + ball.vy * tLead * 0.8, 1, C.PITCH_H - 1);
+      }
+      const tgx = gx - aimX, tgy = gy - aimY;
+      const gl2 = Math.hypot(tgx, tgy) || 1;
+      tx = aimX - (tgx / gl2) * 1.2;
+      ty = aimY - (tgy / gl2) * 1.2;
     }
 
     /* ------- steering -------
@@ -130,12 +145,14 @@ RTL.ai = (function (C, m, W) {
     if (mode === "attack" && ballDist < 20) {
       const gAng = Math.atan2(atkGoalY - ball.y, W.GOAL_CX - ball.x);
       const myToBall = Math.atan2(ball.y - me.y, ball.x - me.x);
-      /* widened from 0.45 -> 0.7 rad and 3.6 -> 4.6 m: with no ball
-         prediction the bot could never satisfy the old tight window, which is
-         why AI-vs-AI matches finished 0-0 */
-      const aligned = Math.abs(m.angDiff(myToBall, gAng)) < 0.7;
+      /* Alignment gate. Widened once to 0.7 rad, which let the bot strike from
+         almost any angle — the ball then leaves along the car's contact normal
+         rather than toward goal, and matches stayed 0-0 with the ball spraying
+         into the corners (measured: ball parked at x=18, mouth is 30.7-37.3).
+         Require a genuinely clean strike before committing. */
+      const aligned = Math.abs(m.angDiff(myToBall, gAng)) < 0.42;
       const facingOwnGoal = Math.abs(m.angDiff(me.heading, Math.atan2(myGoalY - me.y, W.GOAL_CX - me.x))) < 0.9;
-      if (ballAhead > 0 && aligned && ballDist < 4.6) {
+      if (ballAhead > 0 && aligned && ballDist < 4.2) {
         out.shoot = true;   /* clearance beats own-goal risk at close range */
       }
     }
