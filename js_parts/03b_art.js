@@ -14,6 +14,7 @@ RTL.art = (function () {
     taxi_orange: "art/taxi_orange.png",
     ball: "art/ball.png",
     sky_sunset: "art/sky_sunset.png",
+    logo_banner: "art/logo_banner.png",
   };
   let loaded = 0, failed = 0, total = 0;
 

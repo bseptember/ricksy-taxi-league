@@ -206,11 +206,19 @@ RTL.ui = (function (C, m) {
     ctx.fillRect(0, 0, w, h);
     ctx.restore();
 
-    /* title */
+    /* title — AI logo banner (image-1 style arcade marquee) when loaded;
+       fallback to pixel-font text */
+    const logo = (typeof RTL !== "undefined" && RTL.art && RTL.art.get("logo_banner")) || null;
     const title = "RICKSY TAXI LEAGUE";
     const ts = Math.min(30, w / 18) * K;
-    textShadow(ctx, title, w / 2, Math.max(24, h * 0.09), ts, C.COLORS.accent, "center");
-    text(ctx, "KASI CAR SOCCER - 5 MINUTE DERBY", w / 2, Math.max(24, h * 0.09) + ts + 8, 9 * K, C.COLORS.uiDim, "center");
+    if (logo) {
+      const lw = Math.min(w * 0.72, 620 * K);
+      const lh = lw * (logo.height / logo.width);
+      ctx.drawImage(logo, w / 2 - lw / 2, Math.max(18, h * 0.05), lw, lh);
+    } else {
+      textShadow(ctx, title, w / 2, Math.max(24, h * 0.09), ts, C.COLORS.accent, "center");
+    }
+    text(ctx, "KASI CAR SOCCER - 5 MINUTE DERBY", w / 2, (logo ? Math.max(18, h * 0.05) + Math.min(w * 0.72, 620 * K) * (logo.height / logo.width) + 6 : Math.max(24, h * 0.09) + ts + 8), 9 * K, C.COLORS.uiDim, "center");
 
     if (ui.screen === "menu") {
       const bw = Math.min(320 * K, w - 60), bx = w / 2 - bw / 2;
