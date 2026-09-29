@@ -70,9 +70,10 @@ const RTL = {
   C.SHOT_SPEED_MIN = 18;
   C.SHOT_SPEED_MAX = 34;
   /* Tap-shot reach. The AI's shoot gate MUST equal this or its requests are
-     silently discarded by the sim (they were: AI fired at 3.7-3.9m, the sim
-     only honoured < 3.2m, so 3 requests produced 0 shots). */
-  C.TAP_SHOT_RANGE = 3.2;
+     silently discarded by the sim. This bug was ALREADY documented here and
+     still present: the AI fired from 3.76-4.07m, the sim only honoured
+     < 3.2m, so 15 requests produced 3 shots. Both read this constant now. */
+  C.TAP_SHOT_RANGE = 4.4;
   C.FLY_BOOST_AIR_ACCEL = 14;     // G key / fly assist toward ball
 
   /* ---- Pitch (FIFA-size, metres) ---- */

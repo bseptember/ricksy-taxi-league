@@ -153,22 +153,30 @@ RTL.ai = (function (C, m, W) {
     const ballAhead = (ball.x - me.x) * Math.cos(me.heading) + (ball.y - me.y) * Math.sin(me.heading);
     const ballDist = m.dist(me.x, me.y, ball.x, ball.y);
     if (mode === "attack" && ballDist < 20) {
-      const gAng = Math.atan2(atkGoalY - ball.y, W.GOAL_CX - ball.x);
-      const myToBall = Math.atan2(ball.y - me.y, ball.x - me.x);
-      /* Strike gate. The old test compared the car->ball bearing with the
-         ball->goal bearing and demanded < 0.42 rad — but a car that is
-         correctly positioned BEHIND the ball is necessarily at ~PI rad from
-         the ball->goal line, so the gate could almost never be satisfied and
-         the bot never converted. The real questions are: is the ball on its
-         way to goal from where I am, and am I lined up to hit it through? */
-      const ballOnLine = Math.abs(m.angDiff(myToBall, gAng)) < 0.9;   // ball is goal-ward
-      const carBehind = Math.abs(m.angDiff(me.heading, gAng)) < 0.6;  // I'm aiming at it
-      /* Range MUST match the sim's tap-shot gate (06_sim.js: d < 3.2), or the
-         request is silently dropped. Measured: the bot asked to shoot at
-         3.68-3.90m and the sim threw every one away — 3 requests, 0 balls
-         launched. Keep this number in sync with TAP_SHOT_RANGE. */
-      if (ballAhead > 0 && (carBehind || ballOnLine) && ballDist < C.TAP_SHOT_RANGE) {
-        out.shoot = true;   /* clearance beats own-goal risk at close range */
+      /* Strike gate. Two earlier versions were wrong and both are documented
+         below rather than deleted, because the failure mode is invisible:
+         the shot FIRES, it just goes the wrong way and the match reads 0-0.
+         v1 compared car->ball with ball->goal and demanded < 0.42 rad — but a
+         car correctly positioned BEHIND the ball is at ~PI rad from that line,
+         so the gate could never pass and the bot never struck at all.
+         v2 accepted "car heading near the goal angle", which the car
+         satisfies while driving THROUGH the ball from the goal side, so it
+         own-goaled (measured: car y=54, ball y=49.9, ball fired at vy=-35.8
+         toward its OWN mouth).
+         The correct test is geometric: the car must sit on the opposite side
+         of the ball from the goal, so contact drives the ball goal-ward. */
+      const gx = W.GOAL_CX - ball.x, gy = atkGoalY - ball.y;
+      const gl = Math.hypot(gx, gy) || 1;
+      const carX = me.x - ball.x, carY = me.y - ball.y;
+      const behind = (carX * (gx / gl) + carY * (gy / gl)) < 0;   // negative = opposite side
+      /* NOTE: deliberately NOT gated on `ballAhead`. That test requires the
+         ball to be in the car's forward cone, but a car set up to strike
+         correctly sits OPPOSITE the goal — facing its own half, with the
+         ball behind it — and must reverse in. Gating on ballAhead meant the
+         bot could never arm a shot from the position that actually works
+         (verified: behind=true, dist=3.0m, yet shoot stayed false). */
+      if (behind && ballDist < C.TAP_SHOT_RANGE) {
+        out.shoot = true;   /* only ever strike through the ball at goal */
       }
     }
 
