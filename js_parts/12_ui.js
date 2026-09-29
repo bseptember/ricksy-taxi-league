@@ -136,7 +136,7 @@ RTL.ui = (function (C, m) {
     if (match.firstDriveT != null && match.firstDriveT < 8) {
       const a = m.clamp(Math.min(1, (8 - match.firstDriveT) / 1.5), 0, 1);
       const hy = view.h - 120 * K;
-      const lines = ["W A S D - DRIVE", "SHIFT - BOOST", "B - CAMERA", "F - SHOOT"];
+      const lines = ["W A S D - DRIVE", "SHIFT - BOOST", "SPACE - JUMP (x2 = FLIP)", "W+SHIFT IN AIR - AERIAL", "FAST + WALL - WALL DRIVE", "B - CAMERA", "F - SHOOT"];
       panel(ctx, w / 2 - 95 * K, hy - 16 * K, 190 * K, (lines.length + 1.4) * 14 * K, { bg: "#14061f", alpha: a * 0.72, border: false });
       lines.forEach((ln, i) => {
         text(ctx, ln, w / 2, hy + i * 14 * K, 9 * K, i === 0 ? C.COLORS.accent : "#ffffff", "center", a);
@@ -183,8 +183,16 @@ RTL.ui = (function (C, m) {
   function drawMenu(ctx, view, ui, hit) {
     const { w, h } = view;
     const K = Math.max(1, w / 1300);
+    /* AI-generated township sunset backdrop (menu_bg.png) behind the menu —
+       cover-fit; procedural dim layer on top keeps buttons readable. */
+    const bg = (typeof RTL !== "undefined" && RTL.art && RTL.art.get("menu_bg")) || null;
+    if (bg) {
+      const s = Math.max(w / bg.width, h / bg.height);
+      const dw = bg.width * s, dh = bg.height * s;
+      ctx.drawImage(bg, (w - dw) / 2, (h - dh) / 2, dw, dh);
+    }
     ctx.save();
-    ctx.fillStyle = "rgba(6,10,20,.55)";
+    ctx.fillStyle = "rgba(6,10,20,.45)";
     ctx.fillRect(0, 0, w, h);
     ctx.restore();
 
