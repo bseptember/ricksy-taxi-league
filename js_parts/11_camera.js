@@ -57,19 +57,14 @@ RTL.camera = (function (C, m) {
       lookZ = 0;
       anchorY = view.h * 0.52;
     } else {
-      /* CAR cam — RACING CHASE (driver view): the camera rotates so the
-         car's heading is always UP-SCREEN — you see what's in front of you,
-         like a racing game. This is what Brandon means by "we should see
-         everything in front of us". Two earlier attempts failed:
-         - v1 heading-lock whipped 0.42 rad per steering input (no rate cap).
-         - fixed-iso replica kept the frame still but the CAR pointed every
-           which way — "why does the car not face forward?".
-         The fix is heading-lock + the rotation machinery that already works:
-         the CAR maxRate cap (2.8 rad/s), the flip deadzone (3x near-reversal),
-         and slow-in-rate so the frame eases behind the car and then holds
-         still relative to it (no continuous spin while driving straight). */
+      /* CAR cam — FIXED ISO, NO ROTATION (Brandon's verdict after playtest:
+         the heading-locked chase rotated the world on every turn and felt
+         unplayable — the whole pitch swung around; he asked for it removed).
+         W/A/S/D push the car in constant screen directions. The car sprite
+         still rotates to show its heading; only the VIEW stays still.
+         Breathing zoom, ball lean and lazy pan are unchanged. */
       const hd = target.heading;
-      rot = -Math.PI / 2 - hd;
+      rot = -Math.PI / 4;
       const la = (p.lookAhead || 5) * m.clamp(spd / 18, 0, 1.4);
       /* ball-bias: lean the look point toward a far ball so both stay framed.
          The look point sits ON the car→ball line. Baseline lean 0.55 (ball
