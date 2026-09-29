@@ -212,13 +212,14 @@ RTL.ui = (function (C, m) {
     const title = "RICKSY TAXI LEAGUE";
     const ts = Math.min(30, w / 18) * K;
     if (logo) {
-      const lw = Math.min(w * 0.72, 620 * K);
+      const lw = Math.min(w * 0.52, 430 * K);
       const lh = lw * (logo.height / logo.width);
-      ctx.drawImage(logo, w / 2 - lw / 2, Math.max(18, h * 0.05), lw, lh);
+      ctx.drawImage(logo, w / 2 - lw / 2, Math.max(14, h * 0.035), lw, lh);
+      text(ctx, "KASI CAR SOCCER - 5 MINUTE DERBY", w / 2, Math.max(14, h * 0.035) + lh + 6, 9 * K, C.COLORS.uiDim, "center");
     } else {
       textShadow(ctx, title, w / 2, Math.max(24, h * 0.09), ts, C.COLORS.accent, "center");
+      text(ctx, "KASI CAR SOCCER - 5 MINUTE DERBY", w / 2, Math.max(24, h * 0.09) + ts + 8, 9 * K, C.COLORS.uiDim, "center");
     }
-    text(ctx, "KASI CAR SOCCER - 5 MINUTE DERBY", w / 2, (logo ? Math.max(18, h * 0.05) + Math.min(w * 0.72, 620 * K) * (logo.height / logo.width) + 6 : Math.max(24, h * 0.09) + ts + 8), 9 * K, C.COLORS.uiDim, "center");
 
     if (ui.screen === "menu") {
       const bw = Math.min(320 * K, w - 60), bx = w / 2 - bw / 2;

@@ -10,9 +10,43 @@ RTL.render = (function (C, m, W, S) {
   let crowd = null;       // crowdPattern cached
   let props = null;       // world props cached
   let padList = null;     // boost pads cached
+  let turfTex = null;     // baked pitch turf texture (grass noise + wear)
 
   function ensure() {
     if (!props) { props = W.props(); crowd = W.crowdPattern(); padList = W.boostPads(); }
+    if (!turfTex) turfTex = bakeTurf();
+  }
+
+  /* Baked turf texture: seamless-ish grass noise + mower wear + dirt
+     patches. Generated ONCE into a small offscreen canvas and blitted as a
+     projected quad, so it costs one drawImage instead of hundreds of fills. */
+  function bakeTurf() {
+    const TS = 256;
+    const cv = document.createElement("canvas");
+    cv.width = TS; cv.height = TS;
+    const g = cv.getContext("2d");
+    if (!g) return null;
+    g.fillStyle = C.COLORS.grassA;
+    g.fillRect(0, 0, TS, TS);
+    /* blade speckle */
+    for (let i = 0; i < 900; i++) {
+      const x = (i * 61.7) % TS, y = (i * 113.3) % TS;
+      const v = (i * 37) % 10;
+      g.fillStyle = v < 4 ? "rgba(255,255,255,.055)"
+                  : v < 8 ? "rgba(0,0,0,.05)"
+                  : "rgba(120,200,90,.06)";
+      g.fillRect(x | 0, y | 0, 1, 2);
+    }
+    /* soft worn patches (goal mouths + centre) */
+    for (let i = 0; i < 26; i++) {
+      const x = (i * 97) % TS, y = (i * 53) % TS, r = 10 + (i % 7) * 6;
+      const rad = g.createRadialGradient(x, y, 0, x, y, r);
+      rad.addColorStop(0, "rgba(190,170,110,.13)");
+      rad.addColorStop(1, "rgba(190,170,110,0)");
+      g.fillStyle = rad;
+      g.beginPath(); g.arc(x, y, r, 0, m.TAU); g.fill();
+    }
+    return cv;
   }
 
   /** pixel scale: derived from camera zoom so art stays chunky-consistent */
@@ -191,6 +225,32 @@ RTL.render = (function (C, m, W, S) {
       ctx.moveTo(c0.x, c0.y); ctx.lineTo(c1.x, c1.y);
       ctx.lineTo(c2.x, c2.y); ctx.lineTo(c3.x, c3.y);
       ctx.closePath(); ctx.fill();
+    }
+
+    /* turf texture overlay (baked once): grass speckle + wear. Clipped to the
+       pitch quad, drawn with 'overlay' so it enriches without washing out the
+       mow stripes or the radial glow. */
+    if (turfTex) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(corners[0].x, corners[0].y);
+      for (let i = 1; i < 4; i++) ctx.lineTo(corners[i].x, corners[i].y);
+      ctx.closePath();
+      ctx.clip();
+      ctx.globalCompositeOperation = "overlay";
+      ctx.globalAlpha = 0.75;
+      /* tile across the pitch bounding box in projected space */
+      const minX = Math.min(corners[0].x, corners[1].x, corners[2].x, corners[3].x);
+      const maxX = Math.max(corners[0].x, corners[1].x, corners[2].x, corners[3].x);
+      const minY = Math.min(corners[0].y, corners[1].y, corners[2].y, corners[3].y);
+      const maxY = Math.max(corners[0].y, corners[1].y, corners[2].y, corners[3].y);
+      const tile = 128;
+      for (let y = minY; y < maxY; y += tile) {
+        for (let x = minX; x < maxX; x += tile) {
+          ctx.drawImage(turfTex, x, y, tile, tile);
+        }
+      }
+      ctx.restore();
     }
 
     /* lines */
