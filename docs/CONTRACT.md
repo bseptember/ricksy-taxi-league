@@ -102,7 +102,10 @@ RTL.render.pickSizes(w, h, dpr)   // returns {pixelScale, canvasW, canvasH} cris
 
 ## Non-negotiables
 1. NO copied assets/code from robkodev's Retro League. Same *genre mechanics* only.
-2. All art procedural pixel art (string-map sprites baked to offscreen canvas).
+2. Art: original only. AI-GENERATED images ARE allowed (z.ai generator), stored in
+   `public/art/`, and must be substantially edited/curated by the team — never raw
+   third-party game rips. Procedural string-map sprites remain the fallback if an
+   image fails to load.
 3. All audio Web Audio synthesis, zero files, all calls safe (try/catch inside 04).
 4. 60fps on a mid phone: single canvas, no per-frame allocations in hot paths,
    no shadowBlur, object pools for fx particles.

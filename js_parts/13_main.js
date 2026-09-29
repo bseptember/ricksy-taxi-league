@@ -554,6 +554,7 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
     canvas = document.getElementById("game");
     ctx = canvas.getContext("2d");
     RTL.spr.bake();
+    if (RTL.art) RTL.art.load();   // AI art preload; fallbacks stay procedural
     resize();
     input.attach(canvas);
     window.addEventListener("resize", resize);

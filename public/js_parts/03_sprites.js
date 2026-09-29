@@ -9,6 +9,9 @@
 RTL.spr = (function (C, m) {
   const cache = {};
   let baked = false;
+  /* AI-generated image assets (loaded by RTL.art, see 03b_art.js). When an
+     image is present it replaces the procedural sprite; keyed by name. */
+  const imgs = (typeof RTL !== "undefined" && RTL.art && RTL.art._imgs) || {};
 
   /* ---- canvas factory (override in tests) ---- */
   function _makeCanvas(w, h) {
@@ -302,9 +305,26 @@ RTL.spr = (function (C, m) {
       }
     }
   }
-
+  /* ---------- draw: prefers AI art image when loaded, else procedural ---- */
   function draw(ctx, name, x, y, opts) {
     const o = opts || {};
+    const img = imgs[name];
+    if (img) {
+      const sc = (o.scale || 3) / 3;               // image assets are 3x baked
+      const targetW = o.w || img.width * sc * 0.42; // ~42% = fit legacy box
+      const targetH = o.h || img.height * sc * 0.42;
+      ctx.save();
+      if (o.alpha != null) ctx.globalAlpha = o.alpha;
+      if (o.rot) {
+        ctx.translate(Math.round(x), Math.round(y - targetH / 2));
+        ctx.rotate(o.rot);
+        ctx.drawImage(img, -targetW / 2, -targetH / 2, targetW, targetH);
+      } else {
+        ctx.drawImage(img, Math.round(x - targetW / 2), Math.round(y - targetH), targetW, targetH);
+      }
+      ctx.restore();
+      return;
+    }
     const frames = cache[name];
     if (!frames) return;
     const cv = frames[Math.floor(o.frame || 0) % frames.length];

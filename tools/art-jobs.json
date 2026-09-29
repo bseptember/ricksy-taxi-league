@@ -1,0 +1,14 @@
+[
+  {
+    "out": "public/art/taxi_orange.png",
+    "prompt": "16-bit pixel art game sprite, top-down mini taxi van, high isometric angle facing up-right, bright orange body with white racing stripes, dark chunky outline, solid magenta background, retro arcade style, centered, same angle and size as a blue taxi sprite"
+  },
+  {
+    "out": "public/art/ball.png",
+    "prompt": "16-bit pixel art game sprite, classic soccer ball, white with black pentagon patches, glossy highlight top-left, thick dark outline, chunky pixels, solid magenta background, retro arcade style, centered, large"
+  },
+  {
+    "out": "public/art/menu_bg.png",
+    "prompt": "16-bit pixel art wide landscape, South African township soccer field at sunset, isometric green pitch with white lines, purple-to-orange gradient sky, big banded sun, township houses with lit windows on horizon, colorful crowd stands, vibrant pop-art arcade style, no text"
+  }
+]
