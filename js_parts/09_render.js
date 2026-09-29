@@ -71,24 +71,29 @@ RTL.render = (function (C, m, W, S) {
   }
 
   function drawSkyline(ctx, view) {
-    /* distant township roofs silhouette above the far touchline —
-       pop-art: deep purple shapes with hot yellow window lights */
+    /* AI sky_sunset.png ALREADY CONTAINS layered purple hill silhouettes, so
+       the procedural building boxes are drawn only when the sky image is NOT
+       loaded (fallback mode). With the image, windows-only sparkle is drawn
+       near the horizon for parallax life without covering the painted sky. */
     const baseV = m.iso(0, 0, 0);
     const baseY = view.cam.oy + baseV.v * view.cam.zoom;
     const y0 = Math.min(baseY - 40, view.h * 0.42);
-    ctx.fillStyle = C.COLORS.skyline || "#241145";
-    for (let i = -1; i < 24; i++) {
-      const bw = 60 + ((i * 53) % 70);
-      const bh = 26 + ((i * 71) % 60);
-      const bx = ((i * 140) % (view.w + 200)) - 100;
-      ctx.fillRect(bx, y0 - bh, bw, bh);
-      /* corrugated roof pop line */
-      ctx.fillStyle = "rgba(255,210,63,.22)";
-      ctx.fillRect(bx, y0 - bh, bw, 3);
+    const haveSkyImg = typeof RTL !== "undefined" && RTL.art && RTL.art.has("sky_sunset");
+    if (!haveSkyImg) {
       ctx.fillStyle = C.COLORS.skyline || "#241145";
+      for (let i = -1; i < 24; i++) {
+        const bw = 60 + ((i * 53) % 70);
+        const bh = 26 + ((i * 71) % 60);
+        const bx = ((i * 140) % (view.w + 200)) - 100;
+        ctx.fillRect(bx, y0 - bh, bw, bh);
+        /* corrugated roof pop line */
+        ctx.fillStyle = "rgba(255,210,63,.22)";
+        ctx.fillRect(bx, y0 - bh, bw, 3);
+        ctx.fillStyle = C.COLORS.skyline || "#241145";
+      }
     }
-    /* window dots — brighter, chunkier */
-    ctx.fillStyle = C.COLORS.skylineLit || "#ffd23f";
+    /* window dots — brighter, chunkier (both modes; subtle over painted sky) */
+    ctx.fillStyle = haveSkyImg ? "rgba(255,210,63,.55)" : (C.COLORS.skylineLit || "#ffd23f");
     for (let i = 0; i < 56; i++) {
       const wx = ((i * 197) % (view.w + 100)) - 50;
       const wy = y0 - 22 - ((i * 113) % 52);
