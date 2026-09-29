@@ -132,14 +132,24 @@ RTL.ui = (function (C, m) {
       text(ctx, "SHOT READY - TAP F TO SHOOT", 12 * K, view.h - 76 * K, 7 * K, C.COLORS.good);
     }
     /* first-drive control hint: shows for the first 8s of every match, then
-       fades. W = up-screen (fixed iso), SHIFT = boost, B = camera. */
+       fades. Two columns of keycap chips so it never overflows. */
     if (match.firstDriveT != null && match.firstDriveT < 8) {
       const a = m.clamp(Math.min(1, (8 - match.firstDriveT) / 1.5), 0, 1);
-      const hy = view.h - 120 * K;
-      const lines = ["W A S D - DRIVE", "SHIFT - BOOST", "SPACE - JUMP (x2 = FLIP)", "W+SHIFT IN AIR - AERIAL", "FAST + WALL - WALL DRIVE", "B - CAMERA", "F - SHOOT"];
-      panel(ctx, w / 2 - 95 * K, hy - 16 * K, 190 * K, (lines.length + 1.4) * 14 * K, { bg: "#14061f", alpha: a * 0.72, border: false });
-      lines.forEach((ln, i) => {
-        text(ctx, ln, w / 2, hy + i * 14 * K, 9 * K, i === 0 ? C.COLORS.accent : "#ffffff", "center", a);
+      const rows2 = [
+        ["W A S D", "DRIVE"], ["SHIFT", "BOOST"], ["SPACE x2", "FLIP"],
+        ["W+SHIFT AIR", "AERIAL"], ["WALL+FAST", "WALL DRIVE"], ["B", "CAMERA"], ["F", "SHOOT"],
+      ];
+      const colW = 128 * K, rowH = 17 * K;
+      const gridW = colW * 2 + 12 * K, gridH = Math.ceil(rows2.length / 2) * rowH + 8 * K;
+      const gx = w / 2 - gridW / 2, gy = view.h - gridH - 14 * K;
+      panel(ctx, gx - 6 * K, gy - 6 * K, gridW + 12 * K, gridH + 12 * K, { bg: "#100818", alpha: a * 0.8, border: false });
+      rows2.forEach(([key, act], i) => {
+        const col = i % 2, row = Math.floor(i / 2);
+        const cx = gx + col * (colW + 12 * K), cy = gy + row * rowH;
+        /* keycap */
+        panel(ctx, cx, cy, colW * 0.44, rowH - 3 * K, { bg: "#2a1a4a", alpha: a, border: false });
+        text(ctx, key, cx + colW * 0.22, cy + 3 * K, 6.5 * K, C.COLORS.accent, "center", a);
+        text(ctx, act, cx + colW * 0.48, cy + 3 * K, 7 * K, "#ffffff", "left", a);
       });
     }
     /* mobile: boost button fills */

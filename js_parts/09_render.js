@@ -340,19 +340,38 @@ RTL.render = (function (C, m, W, S) {
     S.shadow(ctx, name, sh.x, sh.y, sc);
     /* body at z */
     const pr = m.project(car.x, car.y, car.z, cam, s1);
+    const faceRight = Math.cos(car.heading + (cam.rot != null ? cam.rot : -Math.PI / 4)) >= 0;
     const frame = car.onGround ? Math.floor(car.wheelspin) % 2 : 2;
-    S.draw(ctx, name, pr.x, pr.y + sc, {
-      frame, scale: sc,
-      flip: Math.cos(car.heading + (cam.rot != null ? cam.rot : -Math.PI / 4)) < 0,
-    });
-    /* boost flame */
+    /* boost flame drawn BEHIND the car (opposite the nose), then car */
     if (car.boostHeld) {
       const bx = car.x - Math.cos(car.heading) * 2.6;
       const by = car.y - Math.sin(car.heading) * 2.6;
       const bp = m.project(bx, by, car.z + 0.5, cam, s1);
-      ctx.fillStyle = car.id === "P1" ? "rgba(255,214,10,.85)" : "rgba(255,159,28,.85)";
+      const flick = 0.75 + 0.25 * Math.sin(view.time * 40);
+      ctx.fillStyle = car.id === "P1" ? `rgba(255,214,10,${(0.9 * flick).toFixed(2)})` : `rgba(255,159,28,${(0.9 * flick).toFixed(2)})`;
       ctx.beginPath();
-      ctx.arc(bp.x, bp.y, sc * 1.6, 0, m.TAU);
+      ctx.arc(bp.x, bp.y, sc * 2.6 * flick, 0, m.TAU);
+      ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,.9)";
+      ctx.beginPath();
+      ctx.arc(bp.x, bp.y, sc * 1.1 * flick, 0, m.TAU);
+      ctx.fill();
+    }
+    S.draw(ctx, name, pr.x, pr.y + sc, {
+      frame, scale: sc,
+      flip: !faceRight,
+    });
+    /* wall-drive spark: while wall-stuck, grind sparks at the wheels */
+    if (car.wallDriveT != null && car.wallDriveT > 0) {
+      const gp = m.project(car.x, car.y, 0, cam, s1);
+      const flick = Math.sin(view.time * 50) > 0 ? 1 : 0.5;
+      ctx.fillStyle = `rgba(255,214,10,${(0.7 * flick).toFixed(2)})`;
+      ctx.beginPath();
+      ctx.arc(gp.x + (faceRight ? -10 : 10), gp.y, 3.5 * flick + 1, 0, m.TAU);
+      ctx.fill();
+      ctx.fillStyle = `rgba(255,255,255,${(0.8 * flick).toFixed(2)})`;
+      ctx.beginPath();
+      ctx.arc(gp.x + (faceRight ? -10 : 10), gp.y, 1.6, 0, m.TAU);
       ctx.fill();
     }
     /* carry ring */
@@ -380,15 +399,24 @@ RTL.render = (function (C, m, W, S) {
   function drawBall(ctx, view) {
     const cam = view.cam;
     const sc = sprScale(cam, 0.075);
-    /* trail */
+    /* trail — PUNCHIER: hot trail when the ball moves fast, soft when slow */
     if (view.trail) {
+      const spd = Math.hypot(view.ball.vx, view.ball.vy);
+      const hot = Math.min(1, spd / 26);           // 0..1 by speed
       for (let i = 0; i < view.trail.length; i++) {
         const t = view.trail[i];
-        const a = (i / view.trail.length) * 0.35;
+        const frac = i / view.trail.length;
+        const a = frac * (0.18 + 0.5 * hot);       // brighter when fast
         const tp = m.project(t.x, t.y, t.z, cam, s1);
-        ctx.fillStyle = `rgba(242,237,226,${a.toFixed(3)})`;
+        /* hot trail: yellow->white core; slow trail: soft white */
+        if (hot > 0.45) {
+          const mix = frac * hot;
+          ctx.fillStyle = `rgba(${Math.round(255)},${Math.round(190 + 60 * (1 - mix))},${Math.round(40 + 200 * (1 - mix))},${a.toFixed(3)})`;
+        } else {
+          ctx.fillStyle = `rgba(242,237,226,${a.toFixed(3)})`;
+        }
         ctx.beginPath();
-        ctx.arc(tp.x, tp.y, sc * 0.5, 0, m.TAU);
+        ctx.arc(tp.x, tp.y, sc * (0.4 + 0.35 * frac * hot), 0, m.TAU);
         ctx.fill();
       }
     }
