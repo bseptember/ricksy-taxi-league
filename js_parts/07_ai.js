@@ -107,6 +107,16 @@ RTL.ai = (function (C, m, W) {
       ty = aimY - (tgy / gl2) * 1.2;
     }
 
+    /* DEAD-BALL CONTEST. Measured live: with the ball parked in a corner the
+       bot idled at 0.5 m/s and never touched it — the chase target was the
+       "1.2m behind the ball" point, so driving there never produced a
+       contact. When the ball is basically stationary, aim AT it instead, so
+       the bot actually goes and knocks it back into play. */
+    const ballStill = Math.hypot(ball.vx, ball.vy) < 1.2;
+    if (ballStill && (mode === "attack" || mode === "chase" || mode === "cover")) {
+      tx = bx; ty = by;
+    }
+
     /* ------- steering -------
        was: out.steer = clamp(diffAng / 0.5, -1, 1) — this SATURATES at
        |diffAng| >= 0.5 rad, so the bot held full lock for 1232 of 1440 think

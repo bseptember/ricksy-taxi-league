@@ -521,6 +521,29 @@ RTL.sim = (function (C, m, W) {
           return;
         }
       }
+
+      /* DEAD-BALL RECOVERY. Measured live: the ball came to rest against a
+         wall at x=64.5 and the bot idled at 0.5 m/s for the rest of the
+         match — nothing in the game ever restarts a stalled play, so a
+         single slow touch could end the fun. If the ball has been nearly
+         stationary for long enough, tap it toward the centre so play
+         continues.
+         Requires at least one live car: a ball alone in a physics test (or a
+         pre-kickoff scene) must be allowed to rest. */
+      const bsp = Math.hypot(ball.vx, ball.vy);
+      const liveCars = cars.filter((c) => !c.demo.active).length;
+      if (bsp < 1.2 && liveCars > 0) {
+        match.deadBallT = (match.deadBallT || 0) + dt;
+      } else {
+        match.deadBallT = 0;
+      }
+      if (match.deadBallT > 1.5) {
+        match.deadBallT = 0;
+        const toC = Math.atan2(C.PITCH_H / 2 - ball.y, C.PITCH_W / 2 - ball.x);
+        ball.vx += Math.cos(toC) * 7;
+        ball.vy += Math.sin(toC) * 7;
+        pushEvent(match, { type: "wakeup" });
+      }
     }
   }
 
