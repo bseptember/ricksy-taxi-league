@@ -233,12 +233,24 @@ RTL.render = (function (C, m, W, S) {
         ctx.stroke();
       }
 
-      /* frame */
+      /* frame — TEAM COLORED (pop): blue goal (end 0 = blue defends... blue
+         ATTACKS y=105 so end 105 is blue's target = blue frame) with glow
+         underline at the mouth; posts stay light for visibility */
+      const teamCol = end === C.PITCH_H ? C.COLORS.blue : C.COLORS.orange;
       ctx.strokeStyle = "#f0f0e8";
       ctx.lineWidth = Math.max(3, cam.zoom * 0.5);
       ctx.beginPath();
       ctx.moveTo(pTL.x, pTL.y); ctx.lineTo(pTLt.x, pTLt.y);
       ctx.lineTo(pTRt.x, pTRt.y); ctx.lineTo(pTR.x, pTR.y);
+      ctx.stroke();
+      /* team-colored mouth bar on the ground + crossbar tint */
+      ctx.strokeStyle = teamCol;
+      ctx.lineWidth = Math.max(3, cam.zoom * 0.34);
+      ctx.beginPath();
+      ctx.moveTo(pTL.x, pTL.y); ctx.lineTo(pTR.x, pTR.y);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(pTLt.x, pTLt.y); ctx.lineTo(pTRt.x, pTRt.y);
       ctx.stroke();
       /* side nets to back */
       ctx.lineWidth = 1;
