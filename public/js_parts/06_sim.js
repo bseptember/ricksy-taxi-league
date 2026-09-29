@@ -184,11 +184,18 @@ RTL.sim = (function (C, m, W) {
         const a = C.CAR_ACCEL * 0.28 * dt;
         car.vx += fx * a; car.vy += fy * a;
       }
-      /* double-jump / flip */
+      /* double-jump / flip — works for BOTH control schemes: CLASSIC uses
+         throttle/steer; ASSISTED uses the moveVec screen direction so flip
+         direction matches where the player is pushing. */
       if (jumpDown && car.canFlip) {
         car.canFlip = false;
-        const dirX = fx * inp.throttle + fy * inp.steer;
-        const dirY = fy * inp.throttle - fx * inp.steer;
+        let dirX, dirY;
+        if (inp.moveVec) {
+          dirX = inp.moveVec.x; dirY = inp.moveVec.y;
+        } else {
+          dirX = fx * inp.throttle + fy * inp.steer;
+          dirY = fy * inp.throttle - fx * inp.steer;
+        }
         const dl = Math.hypot(dirX, dirY);
         if (dl > 0.2) {
           car.flip.active = true; car.flip.t = C.CAR_FLIP_SECONDS;
@@ -200,6 +207,17 @@ RTL.sim = (function (C, m, W) {
           car.vz = C.CAR_DOUBLE_JUMP_VZ; // plain double jump
         }
       }
+      /* aerial boost (Rocket-League style): holding boost + pointing up in
+         the air accelerates the car along its NOSE direction including
+         upward component. In assisted/2D the "up" input (W = screen-up =
+         moveVec.y<0) pitches the nose up; boost then gains height. This is
+         what makes aerials possible: jump, tilt nose skyward, hold boost. */
+      if (inp.boost && car.boost > 0 && !car.onGround && inp.moveVec) {
+        car.boost = Math.max(0, car.boost - C.BOOST_USE_PER_SEC * dt);
+        car.boostHeld = true;
+        /* assisted 2D: W (up-screen) while airborne = climb */
+        car.vz += C.CAR_BOOST_ACCEL * 0.55 * dt;
+      } else if (!inp.boost) car.boostHeld = false;
       if (car.flip.active) {
         car.flip.t -= dt;
         car.angVel = 14; // visual spin
