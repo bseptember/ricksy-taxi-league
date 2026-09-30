@@ -51,21 +51,47 @@ RTL.events = (function (C, m, W) {
     return "GO!";
   }
 
-  /** full-time summary. Reads match.stats with 0 fallbacks. */
-  function fullTime(match) {
+  /* ---------- full-time summary ----------
+     Read-only. The sim owns score + stats (06_sim.js), so this is pure
+     formatting of a finished match. `opt` = main's session state, used for
+     the career/form block; omitted in headless tests. */
+  function fullTime(match, opt) {
     const s = match.stats || {};
     const b = match.score.blue, o = match.score.orange;
+    const won = b > o ? "win" : o > b ? "loss" : "draw";
     const winner = b > o ? BLUE_NAME + " WINS THE DERBY!" : o > b ? ORANGE_NAME + " WINS THE DERBY!" : "THE DERBY ENDS ALL SQUARE!";
-    const title = match.overtime ? "GOLDEN GOAL!" : "FULL TIME";
+    const title = match.overtime ? "GOLDEN GOAL" : "FULL TIME";
+    /* big verdict line, driven by the actual result */
+    const verdict = won === "win" ? "YOU WIN" : won === "loss" ? "YOU LOSE" : "DRAW";
+    /* possession share: who touched the ball most. Cheap, honest proxy, and
+       it gives the player a reason to look at the stats rather than skip. */
+    const tB = s.touchesBlue || 0, tO = s.touchesOrange || 0;
+    const poss = tB + tO > 0 ? Math.round((tB / (tB + tO)) * 100) : 50;
     const lines = [
       winner,
       "GOALS " + b + " - " + o,
       "SHOTS " + (s.shotsBlue || 0) + " - " + (s.shotsOrange || 0),
+      "ON TARGET " + poss + "%",
       "TOP CARRY " + (s.carryMaxBlue || 0).toFixed(1) + "s - " + (s.carryMaxOrange || 0).toFixed(1) + "s",
-      "DEMOS " + (s.demosBlue || 0) + " - " + (s.demosOrange || 0),
+      "TOP SPEED " + Math.round((s.topSpeedBlue || 0) * 3.6) + " - " + Math.round((s.topSpeedOrange || 0) * 3.6) + " KM/H",
       "SAVES " + (s.savesBlue || 0) + " - " + (s.savesOrange || 0),
+      "DEMOS " + (s.demosBlue || 0) + " - " + (s.demosOrange || 0),
     ];
-    return { title, lines };
+    const ft = { title, verdict, won, lines, score: b + "-" + o, possession: poss };
+
+    /* career block — only when a session state was handed in (live game) */
+    if (opt && opt.stats) {
+      const st = opt.stats;
+      const played = st.played || 0;
+      const w = st.wins || 0, l = st.losses || 0, d = st.draws || 0;
+      ft.career = {
+        played, wins: w, losses: l, draws: d,
+        winRate: played ? Math.round((w / played) * 100) : 0,
+        goals: st.goals || 0, conceded: st.conceded || 0,
+        form: st.form || "",
+      };
+    }
+    return ft;
   }
 
   return { goal, kickoffPose, describe, save, count, fullTime, BLUE_NAME, ORANGE_NAME };

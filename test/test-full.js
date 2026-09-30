@@ -128,8 +128,12 @@ ok(cam.mode === "CAR", "toggle cycles back to CAR (TUNNEL retired from cycle)");
 const g = RTL.events.goal({ score: {} }, "blue", 28);
 ok(g.banner === "GOAL!" && g.freezeS > 0, "goal event info");
 ok(RTL.events.describe(31) === "TBAGRA!" && RTL.events.describe(9) === "", "describe hype strings");
-const ft = RTL.events.fullTime({ overtime: true, score: { blue: 2, orange: 1 }, stats: { shotsBlue: 5, shotsOrange: 3, carryMaxBlue: 4.2, carryMaxOrange: 1.1, demosBlue: 1, demosOrange: 0, savesBlue: 0, savesOrange: 2 } });
-ok(ft.title === "GOLDEN GOAL!" && ft.lines.some((l) => l.indexOf("SHOTS 5 - 3") >= 0), "fullTime stats lines");
+const ft = RTL.events.fullTime({ overtime: true, score: { blue: 2, orange: 1 }, stats: { shotsBlue: 5, shotsOrange: 3, carryMaxBlue: 4.2, carryMaxOrange: 1.1, demosBlue: 1, demosOrange: 0, savesBlue: 0, savesOrange: 2 } }, {
+  played: 12, wins: 7, losses: 3, draws: 2, goals: 24, conceded: 13, form: "WWLWDW", stats: {
+    shotsBlue: 5, shotsOrange: 3, carryMaxBlue: 4.2, carryMaxOrange: 1.1, demosBlue: 1, demosOrange: 0, savesBlue: 0, savesOrange: 2, touchesBlue: 10, touchesOrange: 7, topSpeedBlue: 24.8, topSpeedOrange: 18.6, wallDrives: 2, goalTimes: [30, 60]
+  }
+});
+ok(ft.title === "GOLDEN GOAL" && ft.lines.some((l) => l.indexOf("SHOTS 5 - 3") >= 0) && ft.verdict, "fullTime stats lines");
 
 /* ---- audio no-op safety in node ---- */
 let aThrew = false;

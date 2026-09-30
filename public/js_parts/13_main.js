@@ -166,14 +166,17 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
     match.overtime = false; match.overtimeGoal = false;
     match.seed = (Math.random() * 1e9) | 0;
     match.kickoffFor = "blue";
-    match.stats = { shotsBlue: 0, shotsOrange: 0, carryMaxBlue: 0, carryMaxOrange: 0, demosBlue: 0, demosOrange: 0, savesBlue: 0, savesOrange: 0 };
+    match.deadBallT = 0;
+    /* the sim owns the scoreboard/stats shape now (06_sim.js) */
+    match.stats = sim.blankStats();
     rng = m.rngFrom(match.seed);
     pads = W.boostPads();
     fx.length = 0; trail.length = 0;
     camState.mode = S.defaultCam;
     doKickoff(true);
     S.screen = "playing"; S.paused = false;
-    S.banner = null; S.countdown = null;
+    S.banner = null; S.countdown = null; S.goalFocus = null;
+    S.won = null;
     audio.music("match");
   }
 
@@ -198,20 +201,38 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
   function endMatch() {
     match.state = "over";
     S.screen = "fulltime";
-    S.stats.played++;
-    if (match.score.blue > match.score.orange) S.stats.wins++;
-    S.stats.goals += match.score.blue;
-    ui.fullTime = events.fullTime(match);
+    /* WIN / LOSS / DRAW — the flow the player actually feels. Derived from
+       the final score, recorded once, and surfaced on the full-time screen. */
+    const b = match.score.blue, o = match.score.orange;
+    S.won = b > o ? "win" : o > b ? "loss" : "draw";
+    if (match.mode === "match") {
+      S.stats.played++;
+      if (S.won === "win") S.stats.wins++;
+      if (S.won === "loss") S.stats.losses = (S.stats.losses || 0) + 1;
+      if (S.won === "draw") S.stats.draws = (S.stats.draws || 0) + 1;
+      S.stats.goals += b;
+      S.stats.conceded += o;
+      /* form: last 5 results, newest last ("WLDWW") */
+      S.stats.form = (S.stats.form || "").concat(S.won === "win" ? "W" : S.won === "loss" ? "L" : "D").slice(-5);
+      S.lastResult = {
+        score: b + "-" + o, won: S.won, at: Date.now(),
+        diff: S.difficulty, stats: Object.assign({}, match.stats),
+      };
+    }
+    ui.fullTime = events.fullTime(match, S);
     save();
     audio.music("menu");
-    audio.play("whistle_long");
+    audio.play(S.won === "win" ? "whistle_long" : "whistle");
+    if (S.won === "win") { audio.play("goal"); spawnFx("goalfx", ball.x, ball.y, 2, 30); }
   }
 
   /* ---------------- per-frame event drain ---------------- */
   function drainEvents() {
     for (const e of match.events) {
       if (e.type === "goal") {
-        match.score[e.team]++;
+        /* the score is ALREADY applied by the sim's goal detector
+           (06_sim.js scoreGoal) — do not increment it again here, or the
+           scoreboard double-counts every goal. */
         const info = events.goal(match, e.team, e.speed);
         S.banner = { text: "GOAL!", sub: (e.team === "blue" ? "BLUE" : "ORANGE") + " SCORES · " + Math.round(e.speed * 3.6) + " KM/H",
           t: info.freezeS, total: info.freezeS, big: true,
@@ -334,67 +355,49 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
     if (match.mode === "free" && S.unlimitedFreeBoost) {
       cars[0].boost = C.MAX_BOOST;
     }
-    /* stats: carry time + shots */
-    for (const car of cars) {
-      if (car.carrying) {
-        car.carryT += dt;
-        const key = car.id === "P1" ? "carryMaxBlue" : "carryMaxOrange";
-        match.stats[key] = Math.max(match.stats[key] || 0, car.carryT);
-      } else car.carryT = 0;
-    }
+
+    /* MATCH STATE MACHINE + SCOREBOARD.
+       Moved into 06_sim.js (sim.tickClock) so the sim is the single source of
+       truth — see docs/DIAGNOSIS-0-0.md. Main now only reacts to the returned
+       descriptor with presentation: audio, banner, menu. The per-match stats
+       (carry, shots, saves, demos, top speed) accumulate there too, so a
+       headless run and the live match compute identical numbers. */
+    const tr = sim.tickClock(match, dt, cars, ball);
 
     if (match.state === "countdown") {
-      match.stateT -= dt;
       const n = Math.ceil(match.stateT);
       S.countdown = n >= 3 ? "3" : n === 2 ? "2" : n === 1 ? "1" : "GO!";
-      if (match.stateT <= 0) {
-        match.state = "play";
+      if (n !== S._lastCount) { S._lastCount = n; audio.play("countdown"); }
+    } else S.countdown = null;
+
+    if (tr) {
+      if (tr.kind === "kickoffEnd") {
         S.countdown = null;
         match.firstDriveT = 0;   // first-drive hint timer (ui)
         audio.play("countdown_go");
-      } else if (n !== S._lastCount) {
-        S._lastCount = n;
-        audio.play("countdown");
-      }
-      sim.step(match, cars, ball, { P1: p1, AI: inputs.AI }, dt, rng); // idle physics
-    } else if (match.state === "play") {
-      match.t -= dt;
-      if (match.firstDriveT != null && match.firstDriveT < 8) match.firstDriveT += dt;
-      if (match.t <= 0) {
-        if (match.score.blue !== match.score.orange) {
-          match.t = 0;
-          endMatch();
-          return;
-        }
-        if (!match.overtime) {
-          match.overtime = true;
-          match.t = C.OVERTIME_SECONDS;
-          audio.music("tense");
-          audio.play("whistle");
-          match.events.push({ type: "whistle" });
-        } else {
-          /* overtime expired still tied: golden goal window is over — settle
-             as a draw instead of running the clock forever at 0:00 */
-          match.t = 0;
-          endMatch();
-          return;
-        }
-      }
-      sim.step(match, cars, ball, { P1: p1, AI: inputs.AI }, dt, rng);
-      stepFly(cars[0], p1, dt);
-    } else if (match.state === "goal") {
-      match.stateT -= dt;
-      if (S.banner) S.banner.t -= dt;
-      if (match.overtimeGoal) {
-        /* golden goal: straight to full time after freeze */
-        if (match.stateT <= 0) { endMatch(); return; }
-      } else if (match.stateT <= 0) {
+      } else if (tr.kind === "overtime") {
+        audio.music("tense");
+        audio.play("whistle");
+        match.events.push({ type: "whistle" });
+        S.banner = { text: "GOLDEN GOAL!", sub: "NEXT GOAL WINS", t: 1.6, total: 1.6,
+          big: false, color: C.COLORS.accent };
+      } else if (tr.kind === "restart") {
         S.banner = null;
         S.goalFocus = null;   // release the goal camera before the kickoff
         doKickoff(false);
+      } else if (tr.kind === "fulltime") {
+        endMatch();
+        return;
       }
-      sim.step(match, cars, ball, { P1: p1, AI: inputs.AI }, dt, rng); // frozen-ish
     }
+
+    if (match.state === "play" && match.firstDriveT != null && match.firstDriveT < 8) {
+      match.firstDriveT += dt;
+    }
+    if (match.state === "goal" && S.banner) S.banner.t -= dt;
+
+    sim.step(match, cars, ball, { P1: p1, AI: inputs.AI }, dt, rng);
+    if (match.state === "play") stepFly(cars[0], p1, dt);
     stepPads(dt);
     drainEvents();
   }
