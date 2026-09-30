@@ -441,7 +441,7 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
     },
   };
   function onPointer(e) {
-    if (S.screen === "boot") return;
+    if (S.screen === "boot") { act("boot"); return; }
     if (S.screen === "playing" && !S.paused) return;
     const r = canvas.getBoundingClientRect();
     const cx = (e.clientX - r.left) * dpr, cy = (e.clientY - r.top) * dpr;
@@ -493,6 +493,17 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
       touchEl.querySelector('[data-btn="pause"]').addEventListener("touchstart", (e) => {
         e.preventDefault(); input.state.pauseToggle = true;
       }, { passive: false });
+      /* full-screen toggle: a DOM button, so a plain click works on phones */
+      const fsBtn = touchEl.querySelector('[data-btn="fs"]');
+      if (fsBtn && typeof document.documentElement.requestFullscreen === "function") {
+        fsBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          if (document.fullscreenElement) document.exitFullscreen();
+          else document.documentElement.requestFullscreen().catch(() => {});
+        });
+      } else if (fsBtn) {
+        fsBtn.style.display = "none";
+      }
     } else if (touchEl) {
       touchEl.style.display = want ? "block" : "none";
     }

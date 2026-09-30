@@ -133,7 +133,7 @@ RTL.ui = (function (C, m) {
     }
     /* first-drive control hint: shows for the first 8s of every match, then
        fades. Two columns of keycap chips so it never overflows. */
-    if (match.firstDriveT != null && match.firstDriveT < 8) {
+    if (!ui.touchMode && match.firstDriveT != null && match.firstDriveT < 8) {
       const a = m.clamp(Math.min(1, (8 - match.firstDriveT) / 1.5), 0, 1);
       const rows2 = [
         ["W A S D", "DRIVE"], ["SHIFT", "BOOST"], ["SPACE x2", "FLIP"],
@@ -211,19 +211,24 @@ RTL.ui = (function (C, m) {
     const logo = (typeof RTL !== "undefined" && RTL.art && RTL.art.get("logo_banner")) || null;
     const title = "RICKSY TAXI LEAGUE";
     const ts = Math.min(30, w / 18) * K;
+    /* menus start below the marquee, never printed on top of it (short screens) */
+    let titleBottom;
     if (logo) {
       const lw = Math.min(w * 0.52, 430 * K);
       const lh = lw * (logo.height / logo.width);
-      ctx.drawImage(logo, w / 2 - lw / 2, Math.max(14, h * 0.035), lw, lh);
-      text(ctx, "KASI CAR SOCCER - 5 MINUTE DERBY", w / 2, Math.max(14, h * 0.035) + lh + 6, 9 * K, C.COLORS.uiDim, "center");
+      const ty = Math.max(14, h * 0.035);
+      ctx.drawImage(logo, w / 2 - lw / 2, ty, lw, lh);
+      text(ctx, "KASI CAR SOCCER - 5 MINUTE DERBY", w / 2, ty + lh + 6, 9 * K, C.COLORS.uiDim, "center");
+      titleBottom = ty + lh + 6 + 16 * K;
     } else {
       textShadow(ctx, title, w / 2, Math.max(24, h * 0.09), ts, C.COLORS.accent, "center");
       text(ctx, "KASI CAR SOCCER - 5 MINUTE DERBY", w / 2, Math.max(24, h * 0.09) + ts + 8, 9 * K, C.COLORS.uiDim, "center");
+      titleBottom = Math.max(24, h * 0.09) + ts + 8 + 16 * K;
     }
 
     if (ui.screen === "menu") {
       const bw = Math.min(320 * K, w - 60), bx = w / 2 - bw / 2;
-      let by = h * 0.30;
+      let by = Math.max(h * 0.30, titleBottom);
       const items = [
         ["PLAY MATCH", "playMatch"],
         ["FREE PLAY", "freePlay"],
@@ -239,7 +244,9 @@ RTL.ui = (function (C, m) {
     }
 
     if (ui.screen === "matchSetup") {
-      const bw = Math.min(360 * K, w - 50), bx = w / 2 - bw / 2, by = h * 0.30;
+      /* +26K headroom: the OPPONENT caption prints above `by`, so `by` must
+         clear the marquee subtitle, not just the logo art */
+      const bw = Math.min(360 * K, w - 50), bx = w / 2 - bw / 2, by = Math.max(h * 0.30, titleBottom + 26 * K);
       text(ctx, "OPPONENT", w / 2, by - 22, 10 * K, C.COLORS.uiDim, "center");
       /* difficulty row */
       const dw = (bw - 30) / 4;
@@ -248,9 +255,9 @@ RTL.ui = (function (C, m) {
         button(ctx, C.AI_DIFFICULTIES[i], dx, by, dw, 34 * K, ui.difficulty === i, { size: 8 * K });
         hit.add(dx, by, dw, 34 * K, "diff:" + i);
       }
-      let cy = by + 52 * K;
+      let cy = by + 60 * K;
       /* controls mode */
-      text(ctx, "CONTROLS STYLE", w / 2, cy - 20, 10 * K, C.COLORS.uiDim, "center");
+      text(ctx, "CONTROLS STYLE", w / 2, cy - 16, 10 * K, C.COLORS.uiDim, "center");
       const cw = (bw - 20) / 2;
       button(ctx, "ASSISTED - EASY", bx + 8, cy, cw, 40 * K, ui.assisted, { size: 9 * K });
       hit.add(bx + 8, cy, cw, 40 * K, "assisted");
@@ -265,7 +272,7 @@ RTL.ui = (function (C, m) {
     }
 
     if (ui.screen === "settings") {
-      const bw = Math.min(340 * K, w - 50), bx = w / 2 - bw / 2, by = h * 0.28;
+      const bw = Math.min(340 * K, w - 50), bx = w / 2 - bw / 2, by = Math.max(h * 0.28, titleBottom);
       let cy = by;
       button(ctx, "SOUND: " + (ui.muted ? "OFF" : "ON"), bx, cy, bw, 42 * K, ui.focus === "sound", { size: 11 * K });
       hit.add(bx, cy, bw, 42 * K, "toggleSound"); cy += 52 * K;
@@ -280,7 +287,7 @@ RTL.ui = (function (C, m) {
     }
 
     if (ui.screen === "controls") {
-      const bw = Math.min(400 * K, w - 40), bx = w / 2 - bw / 2, by = h * 0.22;
+      const bw = Math.min(400 * K, w - 40), bx = w / 2 - bw / 2, by = Math.max(h * 0.22, titleBottom);
       panel(ctx, bx, by - 24, bw, 260 * K, { bg: "#0b1522" });
       const rows = [
         ["DRIVE", "W/S or STICK UP/DOWN"],
@@ -344,6 +351,7 @@ RTL.ui = (function (C, m) {
         '<div class="rtl-btn" data-btn="carry" id="rtl-b-carry">CARRY</div>' +
         '<div class="rtl-btn" data-btn="jump" id="rtl-b-jump">JUMP</div>' +
         '<div class="rtl-btn" data-btn="boost" id="rtl-b-boost">BOOST</div>' +
+        '<div class="rtl-btn" data-btn="fs" id="rtl-b-fs">⛶</div>' +
         '<div class="rtl-btn" data-btn="cam" id="rtl-b-cam">CAM</div>' +
         '<div class="rtl-btn" data-btn="pause" id="rtl-b-pause">II</div>';
       root.appendChild(el);
