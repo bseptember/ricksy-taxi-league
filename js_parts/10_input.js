@@ -53,6 +53,15 @@ RTL.input = (function (C, m) {
   };
   const kd = (e) => onKey(e, true);
   const ku = (e) => onKey(e, false);
+  /* alt-tab / tab switch never delivers the keyup: drop everything held,
+     or the taxi keeps driving/boosting on return */
+  const releaseAll = () => {
+    for (const k in KEYMAP) state[KEYMAP[k]] = false;
+    state.pointerDown = false;
+    touch.stick.id = null; touch.stick.dx = 0; touch.stick.dy = 0;
+    for (const b in touch.btn) touch.btn[b] = false;
+  };
+  const onVis = () => { if (document.hidden) releaseAll(); };
 
   /* ---- mouse (desktop: LMB = boost, RMB = jump alt) ---- */
   let canvasEl = null;
@@ -169,10 +178,14 @@ RTL.input = (function (C, m) {
     el.addEventListener("mousedown", onMD);
     window.addEventListener("mouseup", onMU);
     el.addEventListener("contextmenu", onCtx);
+    window.addEventListener("blur", releaseAll);
+    if (typeof document !== "undefined") document.addEventListener("visibilitychange", onVis);
   }
   function dispose() {
     window.removeEventListener("keydown", kd);
     window.removeEventListener("keyup", ku);
+    window.removeEventListener("blur", releaseAll);
+    if (typeof document !== "undefined" && document.removeEventListener) document.removeEventListener("visibilitychange", onVis);
     if (canvasEl) {
       canvasEl.removeEventListener("mousedown", onMD);
       canvasEl.removeEventListener("mouseup", onMU);
