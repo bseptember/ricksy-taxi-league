@@ -41,7 +41,7 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
     assisted: true,
     unlimitedFreeBoost: true,
     forceTouch: false,
-    stats: { played: 0, wins: 0, goals: 0 },
+    stats: { played: 0, wins: 0, goals: 0, conceded: 0 },
     banner: null,           // {text, sub, t, total, big, color}
     countdown: null,        // '3'|'2'|'1'|'GO!'
     touchMode: false,
@@ -211,7 +211,7 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
       if (S.won === "loss") S.stats.losses = (S.stats.losses || 0) + 1;
       if (S.won === "draw") S.stats.draws = (S.stats.draws || 0) + 1;
       S.stats.goals += b;
-      S.stats.conceded += o;
+      S.stats.conceded = (S.stats.conceded || 0) + o;   // old saves lack it (was NaN -> null)
       /* form: last 5 results, newest last ("WLDWW") */
       S.stats.form = (S.stats.form || "").concat(S.won === "win" ? "W" : S.won === "loss" ? "L" : "D").slice(-5);
       S.lastResult = {

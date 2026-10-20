@@ -71,7 +71,7 @@ RTL.events = (function (C, m, W) {
       winner,
       "GOALS " + b + " - " + o,
       "SHOTS " + (s.shotsBlue || 0) + " - " + (s.shotsOrange || 0),
-      "ON TARGET " + poss + "%",
+      "POSSESSION " + poss + "%",
       "TOP CARRY " + (s.carryMaxBlue || 0).toFixed(1) + "s - " + (s.carryMaxOrange || 0).toFixed(1) + "s",
       "TOP SPEED " + Math.round((s.topSpeedBlue || 0) * 3.6) + " - " + Math.round((s.topSpeedOrange || 0) * 3.6) + " KM/H",
       "SAVES " + (s.savesBlue || 0) + " - " + (s.savesOrange || 0),

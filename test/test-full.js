@@ -171,6 +171,7 @@ ok(typeof RTL.ui.hud === "function" && typeof RTL.ui.drawMenu === "function", "u
   M.QA.match.score.blue = 2; M.QA.match.score.orange = 1;
   M.QA.endMatch();
   ok(M.S.screen === "fulltime" && M.S.fullTime && M.S.fullTime.verdict === "YOU WIN", "endMatch puts the full-time result on the session");
+  ok(M.S.stats.conceded === 1 && M.S.fullTime.lines.some((l) => l.indexOf("POSSESSION") === 0), "conceded counted from 0, possession labelled as such");
   const acts = [];
   let ftThrew = false;
   try {

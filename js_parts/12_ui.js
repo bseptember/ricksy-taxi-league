@@ -345,10 +345,21 @@ RTL.ui = (function (C, m) {
     if (ui.screen === "fulltime" && ui.fullTime) {
       const ft = ui.fullTime;
       textShadow(ctx, ft.title, w / 2, h * 0.20, 24 * K, C.COLORS.accent, "center");
+      /* the verdict the player actually feels */
+      if (ft.verdict) {
+        const vc = ft.won === "win" ? C.COLORS.good : ft.won === "loss" ? C.COLORS.danger : "#ffffff";
+        textShadow(ctx, ft.verdict, w / 2, h * 0.27, 18 * K, vc, "center");
+      }
       let cy = h * 0.34;
       for (const line of ft.lines) {
         text(ctx, line, w / 2, cy, 11 * K, C.COLORS.uiInk, "center");
         cy += 24 * K;
+      }
+      if (ft.career && ft.career.played) {
+        const c = ft.career;
+        text(ctx, "CAREER W" + c.wins + " D" + c.draws + " L" + c.losses + (c.form ? "  FORM " + c.form : ""),
+          w / 2, cy, 9 * K, C.COLORS.uiDim, "center");
+        cy += 20 * K;
       }
       const bw = Math.min(300 * K, w - 60), bx = w / 2 - bw / 2;
       button(ctx, "REMATCH", bx, cy + 16, bw, 44 * K, ui.focus === "rematch", { size: 12 * K });
