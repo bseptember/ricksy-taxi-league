@@ -72,6 +72,8 @@ RTL.input = (function (C, m) {
     const r = () => el.getBoundingClientRect();
     /* virtual stick */
     const sDown = (e) => {
+      /* one thumb owns the stick; a second finger is never a new stick */
+      if (touch.stick.id !== null) return;
       const b = r();
       touch.active = true;
       const t = e.changedTouches[0];
@@ -100,7 +102,9 @@ RTL.input = (function (C, m) {
       }
       e.preventDefault();
     };
-    el.addEventListener("touchstart", sDown, { passive: false });
+    /* stick only: button touches bubble up to the overlay and used to
+       steal the stick (steering froze while BOOST was held) */
+    (el.querySelector("#rtl-stick") || el).addEventListener("touchstart", sDown, { passive: false });
     el.addEventListener("touchmove", sMove, { passive: false });
     el.addEventListener("touchend", sUp, { passive: false });
     el.addEventListener("touchcancel", sUp, { passive: false });
