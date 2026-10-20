@@ -219,7 +219,8 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
         diff: S.difficulty, stats: Object.assign({}, match.stats),
       };
     }
-    ui.fullTime = events.fullTime(match, S);
+    /* on the session, not the ui module: drawMenu reads it from S */
+    S.fullTime = events.fullTime(match, S);
     save();
     audio.music("menu");
     audio.play(S.won === "win" ? "whistle_long" : "whistle");
@@ -655,7 +656,7 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
   }
 
   /* QA/debug handle (harmless in prod, used by automated verification) */
-  const QA = { get match() { return match; }, get cars() { return cars; }, get ball() { return ball; }, get cam() { return camState; }, get ui() { return S; }, get fx() { return fx; }, get hitStopT() { return hitStopT; }, startMatch, act };
+  const QA = { get match() { return match; }, get cars() { return cars; }, get ball() { return ball; }, get cam() { return camState; }, get ui() { return S; }, get fx() { return fx; }, get hitStopT() { return hitStopT; }, startMatch, endMatch, act };
 
   if (typeof document !== "undefined") {
     const start = () => boot();

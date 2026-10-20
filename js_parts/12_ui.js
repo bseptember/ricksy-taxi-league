@@ -323,7 +323,7 @@ RTL.ui = (function (C, m) {
       hit.add(bx, cy, bw, 40 * K, "quit");
     }
 
-    if (ui.screen === "fulltime") {
+    if (ui.screen === "fulltime" && ui.fullTime) {
       const ft = ui.fullTime;
       textShadow(ctx, ft.title, w / 2, h * 0.20, 24 * K, C.COLORS.accent, "center");
       let cy = h * 0.34;
