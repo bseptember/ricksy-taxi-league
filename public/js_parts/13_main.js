@@ -422,7 +422,7 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
       S.defaultCam = C.CAMS[i]; audio.play("ui"); save();
     }
     else if (a === "toggleTouch") { S.forceTouch = !S.forceTouch; audio.play("ui"); save(); }
-    else if (a === "resume") { S.paused = false; audio.play("ui"); }
+    else if (a === "resume") { S.paused = false; audio.play("ui"); audio.music(match.overtime ? "tense" : "match"); }
     else if (a === "restartMatch") { audio.play("ui"); startMatch(match.mode); }
     else if (a === "quit") { audio.play("ui"); S.paused = false; S.screen = "menu"; audio.music("menu"); }
     else if (a === "rematch") { audio.play("ui"); startMatch("match"); }
@@ -455,7 +455,11 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
     }
   }
   function menuKeys(e) {
-    if (S.screen === "playing") return false;
+    /* pause menu: Enter resumes (it is drawn over the "playing" screen) */
+    if (S.screen === "playing") {
+      if (S.paused && e.code === "Enter") { input.state.pauseToggle = true; return true; }
+      return false;
+    }
     if (e.code === "Enter") {
       const map = {
         boot: "boot", menu: S.focus === "freePlay" ? "freePlay" : "playMatch",
