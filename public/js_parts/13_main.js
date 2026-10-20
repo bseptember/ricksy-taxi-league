@@ -85,6 +85,7 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
   const inputs = { P1: freshInput(), AI: freshInput() };
 
   /* ---------------- canvas ---------------- */
+  let homeEl = null;   // "<- iMidlalo" link, title + menu only
   let canvas = null, ctx = null, dpr = 1, viewW = 800, viewH = 600, pixelScale = 3;
 
   function resize() {
@@ -548,6 +549,7 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
     }
 
     ensureTouch();
+    if (homeEl) homeEl.style.display = S.screen === "boot" || S.screen === "menu" ? "block" : "none";
 
     /* menus process clicks (regions from last frame) */
     if (S.screen !== "playing" || S.paused) hitRegions = [], S.focusItems = [];
@@ -643,6 +645,7 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
     load();
     camState.mode = S.defaultCam;
     canvas = document.getElementById("game");
+    homeEl = document.getElementById("rtl-home");
     ctx = canvas.getContext("2d");
     RTL.spr.bake();
     if (RTL.art) RTL.art.load();   // AI art preload; fallbacks stay procedural

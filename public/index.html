@@ -104,10 +104,23 @@
     gap: 14px; transition: opacity .4s;
   }
   #splash small { color: #8fa8c8; font-size: 8px; }
+
+  /* ---- back to the iMidlalo hub (title + menu only; 13_main toggles it) ---- */
+  #rtl-home {
+    position: fixed; z-index: 11; display: none;
+    left: calc(12px + var(--sal)); bottom: calc(12px + var(--sab));
+    padding: 8px 10px; border-radius: 4px;
+    background: rgba(11,21,34,0.78); border: 2px solid rgba(255,255,255,0.25);
+    color: #ffd60a; font-family: "Press Start 2P", monospace; font-size: 9px;
+    text-decoration: none;
+  }
+  #rtl-home span { font-family: system-ui, sans-serif; font-size: 13px; vertical-align: -1px; }  /* pixel font has no arrow */
+  #rtl-home:hover, #rtl-home:focus-visible { border-color: #ffd60a; }
 </style>
 </head>
 <body>
 <canvas id="game" width="800" height="600"></canvas>
+<a id="rtl-home" href="https://imidlalo.co.za/"><span aria-hidden="true">&larr;</span> iMidlalo</a>
 <div id="splash">
   <div>RICKSY TAXI LEAGUE</div>
   <small>WARMING UP THE KOMBI...</small>
