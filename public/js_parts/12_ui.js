@@ -24,6 +24,14 @@ RTL.ui = (function (C, m) {
     text(ctx, str, x + 2, y + 2, size, shadow || "rgba(0,0,0,.6)", align);
     text(ctx, str, x, y, size, color, align);
   }
+  /* canvas px per CSS px (1 on desktop, 2 on most phones) */
+  function cssScale(ctx) {
+    const c = ctx.canvas;
+    return c && c.clientWidth ? c.width / c.clientWidth : 1;
+  }
+  /* in-match text scale: never below one CSS px per unit, so phone text is
+     not half-size on a 2x canvas */
+  function hudK(ctx, w) { return Math.max(cssScale(ctx), w / 1300); }
 
   /* ---------- panels ---------- */
   function panel(ctx, x, y, w, h, opts) {
@@ -83,11 +91,17 @@ RTL.ui = (function (C, m) {
   /* ---------- HUD (in-match) ---------- */
   function hud(ctx, view, ui) {
     const { w } = view;
-    const K = Math.max(1, w / 1300);   // canvas-resolution scale for all HUD sizes
+    const D = cssScale(ctx);
+    const K = hudK(ctx, w);   // canvas-resolution scale for all HUD sizes
+    const touch = !!ui.touchMode;   // DOM stick + buttons own the bottom corners
     const match = view.match;
     /* scoreboard plate */
-    const pw = 210 * K, ph = 34 * K;
-    const px = w / 2 - pw / 2, py = 8;
+    let pw = 210 * K;
+    const ph = 34 * K;
+    let px = w / 2 - pw / 2;
+    const py = 8;
+    /* narrow touch screens: keep clear of the CAM/II/fullscreen row (196px) */
+    if (touch && px < 196 * D) { pw = Math.min(pw, w - 204 * D); px = w - pw - 8 * D; }
     panel(ctx, px, py, pw, ph, { bg: "#0b1522", alpha: 0.86 });
     textShadow(ctx, String(match.score.blue), px + 34 * K, py + 11 * K, 14 * K, C.COLORS.blue, "center");
     textShadow(ctx, String(match.score.orange), px + pw - 34 * K, py + 11 * K, 14 * K, C.COLORS.orange, "center");
@@ -101,10 +115,13 @@ RTL.ui = (function (C, m) {
     text(ctx, "BOT", px + pw - 34 * K, py + ph + 4, 7 * K, C.COLORS.orange, "center");
     if (match.overtime) text(ctx, "GOLDEN GOAL", px + pw / 2, py + ph + 2, 8 * K, C.COLORS.accent, "center", 0.6 + 0.4 * Math.sin(view.time * 6));
 
-    /* boost gauge bottom-left */
+    /* boost gauge bottom-left (touch: above the 124px stick, not under it) */
     const car = view.playerCar;
+    let gaugeTop = view.h - 62 * K;
     if (car) {
-      const gx = 14 * K, gy = view.h - 46 * K, gw = 120 * K, gh = 14 * K;
+      const gx = (touch ? 24 * D : 14 * K), gw = 120 * K, gh = 14 * K;
+      const gy = touch ? view.h - 176 * D - 20 * K : view.h - 46 * K;
+      gaugeTop = gy - 16 * K;
       panel(ctx, gx - 4 * K, gy - 4 * K, gw + 8 * K, gh + 8 * K, { bg: "#0b1522", alpha: 0.8 });
       ctx.fillStyle = "#0e2033";
       ctx.fillRect(gx, gy, gw, gh);
@@ -118,18 +135,20 @@ RTL.ui = (function (C, m) {
       text(ctx, kmh + " KM/H", gx + 2, gy + gh + 6 * K, 8 * K, C.COLORS.uiDim);
     }
 
-    /* camera mode chip bottom-right */
-    const camStr = view.cam.mode + " CAM [B]";
-    const cw = 150 * K;
-    panel(ctx, w - cw - 10 * K, view.h - 36 * K, cw, 26 * K, { bg: "#0b1522", alpha: 0.8 });
-    text(ctx, camStr, w - cw / 2 - 10 * K, view.h - 29 * K, 9 * K, C.COLORS.uiDim, "center");
+    /* camera mode chip bottom-right (touch: under the CAM button, no key) */
+    const camStr = view.cam.mode + (touch ? " CAM" : " CAM [B]");
+    const cw = (touch ? 110 : 150) * K;
+    const cx0 = touch ? 14 * D : w - cw - 10 * K, cy0 = touch ? 74 * D : view.h - 36 * K;
+    panel(ctx, cx0, cy0, cw, 26 * K, { bg: "#0b1522", alpha: 0.8 });
+    text(ctx, camStr, cx0 + cw / 2, cy0 + 7 * K, 9 * K, C.COLORS.uiDim, "center");
 
     /* carry indicator */
     if (car && car.carrying) {
-      textShadow(ctx, "CARRY! F TO SHOOT", w / 2, view.h - 70 * K, 10 * K, C.COLORS.good, "center");
+      textShadow(ctx, touch ? "CARRY! TAP SHOT" : "CARRY! F TO SHOOT", w / 2, touch ? view.h * 0.6 : view.h - 70 * K, 10 * K, C.COLORS.good, "center");
     } else if (car && !car.carrying && car.carryCd <= 0) {
       /* SHOT READY hint (retro league parity) */
-      text(ctx, "SHOT READY - TAP F TO SHOOT", 12 * K, view.h - 76 * K, 7 * K, C.COLORS.good);
+      if (touch) text(ctx, "SHOT READY - TAP SHOT", 24 * D, gaugeTop - 14 * K, 7 * K, C.COLORS.good);
+      else text(ctx, "SHOT READY - TAP F TO SHOOT", 12 * K, view.h - 76 * K, 7 * K, C.COLORS.good);
     }
     /* first-drive control hint: shows for the first 8s of every match, then
        fades. Two columns of keycap chips so it never overflows. */
@@ -161,7 +180,7 @@ RTL.ui = (function (C, m) {
   /* ---------- banners ---------- */
   function banner(ctx, view, b) {
     if (!b || b.t <= 0) return;
-    const K = Math.max(1, view.w / 1300);
+    const K = hudK(ctx, view.w);
     const a = m.clamp(b.t / 0.4, 0, 1);
     const pop = b.t > b.total - 0.25 ? m.easeOutBack(m.clamp((b.total - b.t) / 0.25, 0, 1)) : 1;
     ctx.save();
@@ -179,7 +198,7 @@ RTL.ui = (function (C, m) {
   /* ---------- countdown ---------- */
   function countdown(ctx, view, n) {
     if (n == null) return;
-    const K = Math.max(1, view.w / 1300);
+    const K = hudK(ctx, view.w);
     const pop = 1 + 0.2 * Math.sin(view.time * 10);
     ctx.save();
     ctx.translate(view.w / 2, view.h * 0.4);
