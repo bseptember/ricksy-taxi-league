@@ -484,8 +484,11 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
   function ensureTouch() {
     const want = S.forceTouch || ("ontouchstart" in window && window.matchMedia("(pointer: coarse)").matches);
     S.touchMode = want;
+    /* controls only in a match: on menus they covered the logo and ate
+       menu taps */
+    const show = want && S.screen === "playing";
     if (want && !touchEl) {
-      touchEl = ui.touchOverlay(document.body, true);
+      touchEl = ui.touchOverlay(document.body, show);
       input.bindTouch(touchEl);
       /* cam + pause buttons route to intents */
       touchEl.querySelector('[data-btn="cam"]').addEventListener("touchstart", (e) => {
@@ -506,7 +509,16 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
         fsBtn.style.display = "none";
       }
     } else if (touchEl) {
-      touchEl.style.display = want ? "block" : "none";
+      const disp = show ? "block" : "none";
+      if (touchEl.style.display !== disp) {
+        touchEl.style.display = disp;
+        if (!show) {
+          /* a hidden overlay may never see the touchend: drop held input */
+          const T = input.touch;
+          T.stick.id = null; T.stick.dx = 0; T.stick.dy = 0;
+          for (const k in T.btn) T.btn[k] = false;
+        }
+      }
     }
   }
 
