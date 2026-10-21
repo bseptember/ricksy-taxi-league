@@ -381,7 +381,6 @@ RTL.ui = (function (C, m) {
         '<div class="rtl-btn" data-btn="carry" id="rtl-b-carry">CARRY</div>' +
         '<div class="rtl-btn" data-btn="jump" id="rtl-b-jump">JUMP</div>' +
         '<div class="rtl-btn" data-btn="boost" id="rtl-b-boost">BOOST</div>' +
-        '<div class="rtl-btn" data-btn="fs" id="rtl-b-fs">⛶</div>' +
         '<div class="rtl-btn" data-btn="cam" id="rtl-b-cam">CAM</div>' +
         '<div class="rtl-btn" data-btn="pause" id="rtl-b-pause">II</div>';
       root.appendChild(el);

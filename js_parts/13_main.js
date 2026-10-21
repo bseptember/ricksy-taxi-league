@@ -502,17 +502,6 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
       touchEl.querySelector('[data-btn="pause"]').addEventListener("touchstart", (e) => {
         e.preventDefault(); input.state.pauseToggle = true;
       }, { passive: false });
-      /* full-screen toggle: a DOM button, so a plain click works on phones */
-      const fsBtn = touchEl.querySelector('[data-btn="fs"]');
-      if (fsBtn && typeof document.documentElement.requestFullscreen === "function") {
-        fsBtn.addEventListener("click", (e) => {
-          e.preventDefault();
-          if (document.fullscreenElement) document.exitFullscreen();
-          else document.documentElement.requestFullscreen().catch(() => {});
-        });
-      } else if (fsBtn) {
-        fsBtn.style.display = "none";
-      }
     } else if (touchEl) {
       const disp = show ? "block" : "none";
       if (touchEl.style.display !== disp) {
@@ -525,6 +514,43 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
         }
       }
     }
+  }
+
+  /* ---------------- full-screen toggle (phones have no F11) ----------------
+     A real <button> outside the touch overlay: the overlay's [data-btn]
+     touchstart preventDefault used to swallow its click, so on phones the
+     old button was dead. Touch + supported only (never a dead button on
+     iPhone Safari); top-right on menus, in the top button row in a match. */
+  let fsEl = null;
+  const fsOn = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+  const fsOk = () => !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+  function fsSync() {
+    const on = fsOn();
+    fsEl.classList.toggle("on", on);
+    fsEl.setAttribute("aria-pressed", on ? "true" : "false");
+    fsEl.setAttribute("aria-label", on ? "Exit full screen" : "Full screen");
+  }
+  function fsToggle() {
+    const d = document, el = d.documentElement;
+    try {
+      const p = fsOn()
+        ? (d.exitFullscreen ? d.exitFullscreen() : d.webkitExitFullscreen && d.webkitExitFullscreen())
+        : (el.requestFullscreen ? el.requestFullscreen({ navigationUI: "hide" })
+          : el.webkitRequestFullscreen && el.webkitRequestFullscreen());
+      if (p && p.catch) p.catch(() => {});
+    } catch (e) { /* refused: stay as we are */ }
+  }
+  function setupFullscreen() {
+    fsEl = document.getElementById("rtl-fs");
+    if (!fsEl || !fsEl.classList) { fsEl = null; return; }
+    const stop = (e) => e.stopPropagation();   // never a game or menu tap
+    fsEl.addEventListener("pointerdown", stop);
+    fsEl.addEventListener("touchstart", stop, { passive: true });
+    fsEl.addEventListener("click", (e) => { e.stopPropagation(); fsToggle(); });
+    /* also follows the Android back gesture leaving full screen */
+    document.addEventListener("fullscreenchange", fsSync);
+    document.addEventListener("webkitfullscreenchange", fsSync);
+    fsSync();
   }
 
   /* ---------------- main loop ---------------- */
@@ -550,6 +576,10 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
 
     ensureTouch();
     if (homeEl) homeEl.style.display = S.screen === "boot" || S.screen === "menu" ? "block" : "none";
+    if (fsEl) {
+      fsEl.style.display = S.touchMode && fsOk() ? "block" : "none";
+      fsEl.classList.toggle("in-play", S.screen === "playing");
+    }
 
     /* menus process clicks (regions from last frame) */
     if (S.screen !== "playing" || S.paused) hitRegions = [], S.focusItems = [];
@@ -646,6 +676,7 @@ RTL.main = (function (C, m, W, sim, ai, events, audio, input, cam, ui, render) {
     camState.mode = S.defaultCam;
     canvas = document.getElementById("game");
     homeEl = document.getElementById("rtl-home");
+    setupFullscreen();
     ctx = canvas.getContext("2d");
     RTL.spr.bake();
     if (RTL.art) RTL.art.load();   // AI art preload; fallbacks stay procedural
