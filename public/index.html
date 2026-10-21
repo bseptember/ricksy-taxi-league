@@ -72,24 +72,28 @@
   }
   .rtl-btn {
     position: absolute;
-    width: 74px; height: 74px; border-radius: 50%;
-    background: rgba(18,34,56,0.55);
+    width: 66px; height: 66px; border-radius: 50%;
+    background: rgba(18,34,56,0.38);
     border: 2px solid rgba(255,255,255,0.25);
     color: #eaf4ff; font-family: "Press Start 2P", monospace;
-    font-size: 9px; line-height: 70px; text-align: center;
+    font-size: 9px; line-height: 62px; text-align: center;
     pointer-events: auto;
   }
   .rtl-btn:active { background: rgba(61,160,255,0.45); }
   #rtl-b-boost { right: calc(20px + var(--sar)); bottom: calc(96px + var(--sab)); border-color: #ffd60a; color: #ffd60a; }
-  #rtl-b-jump  { right: calc(104px + var(--sar)); bottom: calc(24px + var(--sab)); }
-  #rtl-b-shoot { right: calc(20px + var(--sar)); bottom: calc(188px + var(--sab)); }
-  #rtl-b-carry { right: calc(104px + var(--sar)); bottom: calc(150px + var(--sab)); }
+  #rtl-b-jump  { right: calc(110px + var(--sar)); bottom: calc(16px + var(--sab)); }
+  #rtl-b-shoot { right: calc(20px + var(--sar)); bottom: calc(180px + var(--sab)); }
+  #rtl-b-carry { right: calc(110px + var(--sar)); bottom: calc(156px + var(--sab)); }
   #rtl-b-cam, #rtl-b-pause {
     width: 52px; height: 52px; line-height: 48px; font-size: 8px;
     top: calc(14px + var(--sat)); bottom: auto;
   }
   #rtl-b-cam   { left: calc(14px + var(--sal)); }
   #rtl-b-pause { left: calc(76px + var(--sal)); }
+  #rtl-b-fs {
+    width: 52px; height: 52px; line-height: 48px; font-size: 14px;
+    top: calc(14px + var(--sat)); left: calc(138px + var(--sal)); bottom: auto; right: auto;
+  }
 
   /* ---- loading splash ---- */
   #splash {
@@ -100,10 +104,23 @@
     gap: 14px; transition: opacity .4s;
   }
   #splash small { color: #8fa8c8; font-size: 8px; }
+
+  /* ---- back to the iMidlalo hub (title + menu only; 13_main toggles it) ---- */
+  #rtl-home {
+    position: fixed; z-index: 11; display: none;
+    left: calc(12px + var(--sal)); bottom: calc(12px + var(--sab));
+    padding: 8px 10px; border-radius: 4px;
+    background: rgba(11,21,34,0.78); border: 2px solid rgba(255,255,255,0.25);
+    color: #ffd60a; font-family: "Press Start 2P", monospace; font-size: 9px;
+    text-decoration: none;
+  }
+  #rtl-home span { font-family: system-ui, sans-serif; font-size: 13px; vertical-align: -1px; }  /* pixel font has no arrow */
+  #rtl-home:hover, #rtl-home:focus-visible { border-color: #ffd60a; }
 </style>
 </head>
 <body>
 <canvas id="game" width="800" height="600"></canvas>
+<a id="rtl-home" href="https://imidlalo.co.za/"><span aria-hidden="true">&larr;</span> iMidlalo</a>
 <div id="splash">
   <div>RICKSY TAXI LEAGUE</div>
   <small>WARMING UP THE KOMBI...</small>

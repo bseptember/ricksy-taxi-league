@@ -205,47 +205,61 @@ function testAIBehaves(RTL) {
 
 function testFullMatchSim(RTL) {
   section("sim: AI vs AI full match runs to a result");
-  const match = { mode: "match", score: { blue: 0, orange: 0 }, t: 300, state: "play", stateT: 0, overtime: false, seed: 777, kickoffFor: "orange", events: [] };
-  const mkCar = (id, team, x, y, heading) => ({ id, team, x, y, z: 0, vx: 0, vy: 0, vz: 0, heading, angVel: 0, boost: 34, boostHeld: false, jumping: false, jumpT: 0, airTime: 0, canJump: true, canFlip: true, flip: { active: false, t: 0, dx: 0, dy: 0 }, carrying: false, carryCd: 0, demo: { active: false, t: 0 }, respawnT: 0, onGround: true, wheelspin: 0 });
+  const C = RTL.C;
+  const mkCar = (id, team, x, y, heading) => ({ id, team, x, y, z: 0, vx: 0, vy: 0, vz: 0, heading, angVel: 0, boost: 34, boostHeld: false, jumping: false, jumpT: 0, airTime: 0, canJump: true, canFlip: true, flip: { active: false, t: 0, dx: 0, dy: 0 }, carrying: false, carryCd: 0, carryT: 0, demo: { active: false, t: 0 }, respawnT: 0, onGround: true, wheelspin: 0, wallDriveT: null });
+  const match = { mode: "match", score: { blue: 0, orange: 0 }, t: C.MATCH_SECONDS, state: "countdown", stateT: C.COUNTDOWN_SECONDS, overtime: false, seed: 777, kickoffFor: "blue", events: [] };
   const cars = [mkCar("P1", "blue", 34, 38, Math.PI / 2), mkCar("AI", "orange", 34, 67, -Math.PI / 2)];
-  const ball = { x: 34, y: 52.5, z: 0.35, vx: 0, vy: 0, vz: 0, spin: 0, lastTouch: null, guides: [] };
+  const ball = { x: 34, y: 52.5, z: C.BALL_RADIUS, vx: 0, vy: 0, vz: 0, spin: 0, lastTouch: null, guides: [] };
+  match.stats = RTL.sim.blankStats();
   const rng = RTL.mathx.rngFrom(match.seed);
-  let goals = 0, steps = 0, shots = 0, kicks = 0;
-  /* Each car gets its OWN brain via selfId. Both cars previously ran the
-     hardcoded "AI" brain, so they chased the same target, collided, and the
-     match could never be a real two-sided contest. */
-  let p1Timer = 0, aiTimer = 0, p1In = null, aiIn = null;
-  while (match.t > 0 && steps < 120 * 310) {
-    p1Timer -= RTL.C.FIXED_DT; aiTimer -= RTL.C.FIXED_DT;
+  const zero = () => ({ throttle: 0, steer: 0, boost: false, jump: false, jumpEdge: false, shoot: false, shootEdge: false, carry: false, carryEdge: false, brake: false });
+
+  /* THE HARNESS FIX (see docs/DIAGNOSIS-0-0.md). Three separate defects made
+     this read 0-0, and none of them was "both cars share contested access":
+       1. this loop hand-rolled the state machine and pinned countdown
+          stateT at 0.99, so after the FIRST goal the sim froze forever
+          (06_sim.js:581 skips all physics while state==="countdown");
+       2. it only decremented match.t while state==="play", never driving the
+          clock out of countdown/goal at all;
+       3. it counted a goal only if it saw the EVENT, and the scoreboard lives
+          in the sim now — so a real goal scored points nobody read.
+     Fixed by driving the sim's own tickClock(), which is the single source of
+     truth for clock + score + fulltime, exactly as 13_main does. */
+  let steps = 0, shots = 0, kicks = 0, goalsSeen = 0, fulltime = 0;
+  let p1Timer = 0, aiTimer = 0, p1In = zero(), aiIn = zero();
+  const limit = Math.round(C.MATCH_SECONDS * 2 / C.FIXED_DT); // 2x budget: OT may run
+  while (match.state !== "over" && steps < limit) {
+    p1Timer -= C.FIXED_DT; aiTimer -= C.FIXED_DT;
     if (p1Timer <= 0) { p1Timer = 1 / 30; p1In = RTL.ai.think(match, cars, ball, 2, rng, 1 / 30, "P1"); }
     if (aiTimer <= 0) { aiTimer = 1 / 30; aiIn = RTL.ai.think(match, cars, ball, 2, rng, 1 / 30, "AI"); }
-    RTL.sim.step(match, cars, ball, { P1: p1In, AI: aiIn }, RTL.C.FIXED_DT, rng);
-    steps++;
-    /* The match clock is owned by 13_main, not the sim (06_sim.js:5). Without
-       this the test ran 37200 steps with match.t frozen at 300, never cycling
-       the kickoff/goal-freeze state machine — which is why a real shot could
-       never be converted into a goal event no matter how the AI was tuned. */
-    if (match.state === "play") match.t -= RTL.C.FIXED_DT;
-    if (match.state === "goal") {
-      goals++;
-      /* reset the play state like main does after the freeze, otherwise the
-         match is stuck in "goal" and no further play is simulated */
-      match.stateT = RTL.C.GOAL_FREEZE_SECONDS;
-      match.state = "play";
-      RTL.sim.kickoff(match, cars, ball);
+    /* THE CLOCK. sim.tickClock owns countdown->play, the running clock,
+       overtime, goal freeze and full time. It returns a signal when the match
+       transitions and main-side handlers must act. */
+    const tr = RTL.sim.tickClock(match, C.FIXED_DT, cars, ball);
+    if (tr) {
+      if (tr.kind === "restart") RTL.sim.kickoff(match, cars, ball);
+      else if (tr.kind === "fulltime") fulltime++;
     }
+    RTL.sim.step(match, cars, ball, { P1: p1In, AI: aiIn }, C.FIXED_DT, rng);
+    steps++;
     for (const e of match.events) {
       if (e.type === "shot") shots++;
       if (e.type === "kick" && e.hard) kicks++;
+      if (e.type === "goal") goalsSeen++;
     }
-    if (match.events.length > 0) match.events.length = 0; // drain like main loop would
-    if (match.t > 0 && match.state === "countdown") match.stateT = 0.99; // skip countdowns
-    if (match.state === "over") break;
+    if (match.events.length > 0) match.events.length = 0; // drain like the main loop
   }
-  console.log(`    (sim ${steps} steps, goals=${goals}, shots=${shots}, hardKicks=${kicks}, final ${match.score.blue}-${match.score.orange}, t=${match.t.toFixed(0)})`);
+  const scored = match.score.blue + match.score.orange;
+  console.log(`    (sim ${steps} steps, goalEvents=${goalsSeen}, shots=${shots}, hardKicks=${kicks}, final ${match.score.blue}-${match.score.orange}, state=${match.state}, t=${match.t.toFixed(0)})`);
   ok(steps > 1000, "match ran a long time without exploding");
   ok(Number.isFinite(cars[0].x) && Number.isFinite(ball.x), "no NaN leaked into state");
-  ok(goals >= 1 || shots >= 3, "AI match produces at least a goal or real shots (got " + goals + " goals, " + shots + " shots)");
+  /* THE ASSERTION THAT MATTERS. The old test passed on
+     `goals >= 1 || shots >= 3` — a shots-only escape hatch that let a totally
+     goalless match report green. Now the scoreboard itself is the evidence, and
+     event count must agree with the score (one event = one point). */
+  ok(scored === goalsSeen, "every goal event produced exactly one score (events " + goalsSeen + " = score " + scored + ")");
+  ok(fulltime === 1 && match.state === "over", "match reached full time (state=" + match.state + ", fulltimeSignals=" + fulltime + ")");
+  ok(scored >= 1, "a real AI-vs-AI match scores at least one goal (got " + scored + ")");
 }
 
 /* Assisted (moveVec) drive: input must actually move the car. Regression for

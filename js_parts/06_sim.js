@@ -33,7 +33,7 @@ RTL.sim = (function (C, m, W) {
     car.onGround = true; car.wheelspin = 0;
   }
 
-  /** kickoff poses: blue attacks +Y (goal at y=105), orange attacks -Y. */
+  /* kickoff poses: blue attacks +Y (goal at y=105), orange attacks -Y. */
   function kickoff(match, cars, ball) {
     for (const car of cars) {
       if (car.team === "blue") resetCarPose(car, 34, 38, Math.PI / 2);
@@ -45,6 +45,73 @@ RTL.sim = (function (C, m, W) {
     match.state = "countdown";
     match.stateT = C.COUNTDOWN_SECONDS;
     pushEvent(match, { type: "kickoff" });
+  }
+
+  /* ---------- match state machine + scoreboard ----------
+     WHY THIS MOVED HERE (see docs/DIAGNOSIS-0-0.md). The score and the clock
+     used to live in 13_main.js, so anything that drove the sim directly —
+     the headless harness, and any future replay/spectator/referee — saw a
+     game that could score goals it was unable to count (final 0-0 with
+     goals=1), and could be frozen forever in the kickoff countdown, because
+     `stateT` is what exits that state and only main decremented it.
+     The sim is the single source of truth now. Main keeps presentation. */
+
+  function blankStats() {
+    return { shotsBlue: 0, shotsOrange: 0, carryMaxBlue: 0, carryMaxOrange: 0,
+      demosBlue: 0, demosOrange: 0, savesBlue: 0, savesOrange: 0,
+      touchesBlue: 0, touchesOrange: 0, topSpeedBlue: 0, topSpeedOrange: 0,
+      wallDrives: 0, goalTimes: [] };
+  }
+
+  /** Per-step scoreboard tick. Returns a descriptor when the MATCH changes. */
+  function tickClock(match, dt, cars, ball) {
+    const s = match.stats || (match.stats = blankStats());
+    /* carry duration: counted HERE, once. It used to be counted in both the
+       sim and main, so CARRY_MAX_SECONDS (6 s) actually fired at ~3 s and the
+       full-time "TOP CARRY" stat was double the truth. */
+    for (const car of cars) {
+      if (car.carrying) {
+        s["carryMax" + (car.team === "blue" ? "Blue" : "Orange")] =
+          Math.max(s["carryMax" + (car.team === "blue" ? "Blue" : "Orange")] || 0, car.carryT);
+      }
+      const sp = Math.hypot(car.vx, car.vy);
+      const k = "topSpeed" + (car.team === "blue" ? "Blue" : "Orange");
+      if (sp > (s[k] || 0)) s[k] = sp;
+      if (car.wallDriveT != null) s.wallDrives++;
+    }
+    if (ball.lastTouch) {
+      const c = cars.find((x) => x.id === ball.lastTouch);
+      if (c) s["touches" + (c.team === "blue" ? "Blue" : "Orange")]++;
+    }
+
+    if (match.state === "countdown") {
+      match.stateT -= dt;
+      if (match.stateT <= 0) { match.state = "play"; return { kind: "kickoffEnd" }; }
+      return null;
+    }
+    if (match.state === "play") {
+      match.t -= dt;
+      if (match.t <= 0) {
+        if (match.score.blue !== match.score.orange) { match.t = 0; match.state = "over"; return { kind: "fulltime" }; }
+        if (!match.overtime) { match.overtime = true; match.t = C.OVERTIME_SECONDS; return { kind: "overtime" }; }
+        match.t = 0; match.state = "over"; return { kind: "fulltime" };
+      }
+      return null;
+    }
+    if (match.state === "goal") {
+      match.stateT -= dt;
+      if (match.overtimeGoal) { match.state = "over"; return { kind: "fulltime" }; }
+      if (match.stateT <= 0) return { kind: "restart" };
+      return null;
+    }
+    return null;
+  }
+
+  /** apply a goal event to the scoreboard. Called by the goal detector. */
+  function scoreGoal(match, team) {
+    if (!match.score) match.score = { blue: 0, orange: 0 };
+    match.score[team]++;
+    if (match.stats) match.stats.goalTimes.push(+Math.max(0, match.t).toFixed(1));
   }
 
   /* ---------- car physics ---------- */
@@ -538,6 +605,7 @@ RTL.sim = (function (C, m, W) {
       for (const team of ["blue", "orange"]) {
         if (W.isInsideGoal(ball.x, ball.y, ball.z, team)) {
           const speed = Math.hypot(ball.vx, ball.vy);
+          scoreGoal(match, team);
           pushEvent(match, { type: "goal", team, speed });
           if (match.overtime) match.overtimeGoal = true;
           match.state = "goal";
@@ -586,5 +654,5 @@ RTL.sim = (function (C, m, W) {
     if (!frozen) stepBall(ball, dt, match, cars);
   }
 
-  return { step, kickoff, shootBall: simShoot, releaseCarry };
+  return { step, kickoff, shootBall: simShoot, releaseCarry, tickClock, blankStats, scoreGoal };
 })(RTL.C, RTL.mathx, RTL.world);
