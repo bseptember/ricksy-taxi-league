@@ -90,10 +90,20 @@
   }
   #rtl-b-cam   { left: calc(14px + var(--sal)); }
   #rtl-b-pause { left: calc(76px + var(--sal)); }
-  #rtl-b-fs {
-    width: 52px; height: 52px; line-height: 48px; font-size: 14px;
-    top: calc(14px + var(--sat)); left: calc(138px + var(--sal)); bottom: auto; right: auto;
+  /* full-screen toggle (touch + supported only; 13_main shows it and moves it
+     into the CAM/II row during a match) */
+  #rtl-fs {
+    position: fixed; z-index: 11; display: none;
+    top: calc(14px + var(--sat)); right: calc(14px + var(--sar));
+    width: 52px; height: 52px; padding: 0; border-radius: 50%;
+    background: rgba(18,34,56,0.38); border: 2px solid rgba(255,255,255,0.25);
+    color: #eaf4ff;
   }
+  #rtl-fs.in-play { right: auto; left: calc(138px + var(--sal)); }
+  #rtl-fs:active { background: rgba(61,160,255,0.45); }
+  #rtl-fs svg { display: block; margin: auto; }
+  #rtl-fs .fs-exit, #rtl-fs.on .fs-enter { display: none; }
+  #rtl-fs.on .fs-exit { display: block; }
 
   /* ---- loading splash ---- */
   #splash {
@@ -121,6 +131,10 @@
 <body>
 <canvas id="game" width="800" height="600"></canvas>
 <a id="rtl-home" href="https://imidlalo.co.za/"><span aria-hidden="true">&larr;</span> iMidlalo</a>
+<button id="rtl-fs" type="button" aria-label="Full screen" aria-pressed="false">
+  <svg class="fs-enter" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg>
+  <svg class="fs-exit" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M15 20v-5h5M9 20v-5H4"/></svg>
+</button>
 <div id="splash">
   <div>RICKSY TAXI LEAGUE</div>
   <small>WARMING UP THE KOMBI...</small>
