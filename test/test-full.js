@@ -128,8 +128,12 @@ ok(cam.mode === "CAR", "toggle cycles back to CAR (TUNNEL retired from cycle)");
 const g = RTL.events.goal({ score: {} }, "blue", 28);
 ok(g.banner === "GOAL!" && g.freezeS > 0, "goal event info");
 ok(RTL.events.describe(31) === "TBAGRA!" && RTL.events.describe(9) === "", "describe hype strings");
-const ft = RTL.events.fullTime({ overtime: true, score: { blue: 2, orange: 1 }, stats: { shotsBlue: 5, shotsOrange: 3, carryMaxBlue: 4.2, carryMaxOrange: 1.1, demosBlue: 1, demosOrange: 0, savesBlue: 0, savesOrange: 2 } });
-ok(ft.title === "GOLDEN GOAL!" && ft.lines.some((l) => l.indexOf("SHOTS 5 - 3") >= 0), "fullTime stats lines");
+const ft = RTL.events.fullTime({ overtime: true, score: { blue: 2, orange: 1 }, stats: { shotsBlue: 5, shotsOrange: 3, carryMaxBlue: 4.2, carryMaxOrange: 1.1, demosBlue: 1, demosOrange: 0, savesBlue: 0, savesOrange: 2 } }, {
+  played: 12, wins: 7, losses: 3, draws: 2, goals: 24, conceded: 13, form: "WWLWDW", stats: {
+    shotsBlue: 5, shotsOrange: 3, carryMaxBlue: 4.2, carryMaxOrange: 1.1, demosBlue: 1, demosOrange: 0, savesBlue: 0, savesOrange: 2, touchesBlue: 10, touchesOrange: 7, topSpeedBlue: 24.8, topSpeedOrange: 18.6, wallDrives: 2, goalTimes: [30, 60]
+  }
+});
+ok(ft.title === "GOLDEN GOAL" && ft.lines.some((l) => l.indexOf("SHOTS 5 - 3") >= 0) && ft.verdict, "fullTime stats lines");
 
 /* ---- audio no-op safety in node ---- */
 let aThrew = false;
@@ -146,6 +150,38 @@ ok(typeof snap.throttle === "number", "input sample returns snapshot");
 
 /* ---- ui shape ---- */
 ok(typeof RTL.ui.hud === "function" && typeof RTL.ui.drawMenu === "function", "ui API present");
+
+/* ---- fx at negative coords (orange-goal confetti spills past y=0) ---- */
+{
+  const negView = Object.assign({}, view, { fx: [
+    { kind: "goalfx", x: -1.3, y: -0.7, z: 1, life: 1, t: 0.1 },
+    { kind: "confetti", x: -2.6, y: -0.2, z: 1, life: 1, t: 0.1 },
+  ] });
+  let negThrew = false;
+  try { RTL.render.drawScene(fakeCtx(), negView); } catch (e) { negThrew = true; console.log(e); }
+  ok(!negThrew, "drawScene survives fx particles at negative coords");
+}
+
+/* ---- full time: main hands the result to the screen that draws it ---- */
+{
+  (0, eval)(fs.readFileSync(path.join(ROOT, "js_parts", "13_main.js"), "utf8"));
+  const M = RTL.main;
+  M.boot();   // stub DOM: gives main its canvas, no rAF loop runs
+  M.startMatch("match");
+  M.QA.match.score.blue = 2; M.QA.match.score.orange = 1;
+  M.QA.endMatch();
+  ok(M.S.screen === "fulltime" && M.S.fullTime && M.S.fullTime.verdict === "YOU WIN", "endMatch puts the full-time result on the session");
+  ok(M.S.stats.conceded === 1 && M.S.fullTime.lines.some((l) => l.indexOf("POSSESSION") === 0), "conceded counted from 0, possession labelled as such");
+  const acts = [];
+  let ftThrew = false;
+  try {
+    RTL.ui.drawMenu(fakeCtx(), { w: 780, h: 1688, time: 1 }, M.S, { add: (x, y, w, h, a) => acts.push(a) });
+  } catch (e) { ftThrew = true; console.log(e); }
+  ok(!ftThrew && acts.indexOf("rematch") >= 0 && acts.indexOf("menu") >= 0, "full-time screen draws with REMATCH + MENU tap targets");
+  let noFtThrew = false;
+  try { RTL.ui.drawMenu(fakeCtx(), { w: 780, h: 1688, time: 1 }, { screen: "fulltime" }, { add: () => {} }); } catch (e) { noFtThrew = true; }
+  ok(!noFtThrew, "full-time screen without a result does not throw");
+}
 
 console.log("\n==============================");
 console.log(`PASSED: ${passed}  FAILED: ${failed}`);

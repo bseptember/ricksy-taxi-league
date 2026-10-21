@@ -24,6 +24,14 @@ RTL.ui = (function (C, m) {
     text(ctx, str, x + 2, y + 2, size, shadow || "rgba(0,0,0,.6)", align);
     text(ctx, str, x, y, size, color, align);
   }
+  /* canvas px per CSS px (1 on desktop, 2 on most phones) */
+  function cssScale(ctx) {
+    const c = ctx.canvas;
+    return c && c.clientWidth ? c.width / c.clientWidth : 1;
+  }
+  /* in-match text scale: never below one CSS px per unit, so phone text is
+     not half-size on a 2x canvas */
+  function hudK(ctx, w) { return Math.max(cssScale(ctx), w / 1300); }
 
   /* ---------- panels ---------- */
   function panel(ctx, x, y, w, h, opts) {
@@ -83,11 +91,17 @@ RTL.ui = (function (C, m) {
   /* ---------- HUD (in-match) ---------- */
   function hud(ctx, view, ui) {
     const { w } = view;
-    const K = Math.max(1, w / 1300);   // canvas-resolution scale for all HUD sizes
+    const D = cssScale(ctx);
+    const K = hudK(ctx, w);   // canvas-resolution scale for all HUD sizes
+    const touch = !!ui.touchMode;   // DOM stick + buttons own the bottom corners
     const match = view.match;
     /* scoreboard plate */
-    const pw = 210 * K, ph = 34 * K;
-    const px = w / 2 - pw / 2, py = 8;
+    let pw = 210 * K;
+    const ph = 34 * K;
+    let px = w / 2 - pw / 2;
+    const py = 8;
+    /* narrow touch screens: keep clear of the CAM/II/fullscreen row (196px) */
+    if (touch && px < 196 * D) { pw = Math.min(pw, w - 204 * D); px = w - pw - 8 * D; }
     panel(ctx, px, py, pw, ph, { bg: "#0b1522", alpha: 0.86 });
     textShadow(ctx, String(match.score.blue), px + 34 * K, py + 11 * K, 14 * K, C.COLORS.blue, "center");
     textShadow(ctx, String(match.score.orange), px + pw - 34 * K, py + 11 * K, 14 * K, C.COLORS.orange, "center");
@@ -101,10 +115,13 @@ RTL.ui = (function (C, m) {
     text(ctx, "BOT", px + pw - 34 * K, py + ph + 4, 7 * K, C.COLORS.orange, "center");
     if (match.overtime) text(ctx, "GOLDEN GOAL", px + pw / 2, py + ph + 2, 8 * K, C.COLORS.accent, "center", 0.6 + 0.4 * Math.sin(view.time * 6));
 
-    /* boost gauge bottom-left */
+    /* boost gauge bottom-left (touch: above the 124px stick, not under it) */
     const car = view.playerCar;
+    let gaugeTop = view.h - 62 * K;
     if (car) {
-      const gx = 14 * K, gy = view.h - 46 * K, gw = 120 * K, gh = 14 * K;
+      const gx = (touch ? 24 * D : 14 * K), gw = 120 * K, gh = 14 * K;
+      const gy = touch ? view.h - 176 * D - 20 * K : view.h - 46 * K;
+      gaugeTop = gy - 16 * K;
       panel(ctx, gx - 4 * K, gy - 4 * K, gw + 8 * K, gh + 8 * K, { bg: "#0b1522", alpha: 0.8 });
       ctx.fillStyle = "#0e2033";
       ctx.fillRect(gx, gy, gw, gh);
@@ -118,22 +135,24 @@ RTL.ui = (function (C, m) {
       text(ctx, kmh + " KM/H", gx + 2, gy + gh + 6 * K, 8 * K, C.COLORS.uiDim);
     }
 
-    /* camera mode chip bottom-right */
-    const camStr = view.cam.mode + " CAM [B]";
-    const cw = 150 * K;
-    panel(ctx, w - cw - 10 * K, view.h - 36 * K, cw, 26 * K, { bg: "#0b1522", alpha: 0.8 });
-    text(ctx, camStr, w - cw / 2 - 10 * K, view.h - 29 * K, 9 * K, C.COLORS.uiDim, "center");
+    /* camera mode chip bottom-right (touch: under the CAM button, no key) */
+    const camStr = view.cam.mode + (touch ? " CAM" : " CAM [B]");
+    const cw = (touch ? 110 : 150) * K;
+    const cx0 = touch ? 14 * D : w - cw - 10 * K, cy0 = touch ? 74 * D : view.h - 36 * K;
+    panel(ctx, cx0, cy0, cw, 26 * K, { bg: "#0b1522", alpha: 0.8 });
+    text(ctx, camStr, cx0 + cw / 2, cy0 + 7 * K, 9 * K, C.COLORS.uiDim, "center");
 
     /* carry indicator */
     if (car && car.carrying) {
-      textShadow(ctx, "CARRY! F TO SHOOT", w / 2, view.h - 70 * K, 10 * K, C.COLORS.good, "center");
+      textShadow(ctx, touch ? "CARRY! TAP SHOT" : "CARRY! F TO SHOOT", w / 2, touch ? view.h * 0.6 : view.h - 70 * K, 10 * K, C.COLORS.good, "center");
     } else if (car && !car.carrying && car.carryCd <= 0) {
       /* SHOT READY hint (retro league parity) */
-      text(ctx, "SHOT READY - TAP F TO SHOOT", 12 * K, view.h - 76 * K, 7 * K, C.COLORS.good);
+      if (touch) text(ctx, "SHOT READY - TAP SHOT", 24 * D, gaugeTop - 14 * K, 7 * K, C.COLORS.good);
+      else text(ctx, "SHOT READY - TAP F TO SHOOT", 12 * K, view.h - 76 * K, 7 * K, C.COLORS.good);
     }
     /* first-drive control hint: shows for the first 8s of every match, then
        fades. Two columns of keycap chips so it never overflows. */
-    if (match.firstDriveT != null && match.firstDriveT < 8) {
+    if (!ui.touchMode && match.firstDriveT != null && match.firstDriveT < 8) {
       const a = m.clamp(Math.min(1, (8 - match.firstDriveT) / 1.5), 0, 1);
       const rows2 = [
         ["W A S D", "DRIVE"], ["SHIFT", "BOOST"], ["SPACE x2", "FLIP"],
@@ -161,7 +180,7 @@ RTL.ui = (function (C, m) {
   /* ---------- banners ---------- */
   function banner(ctx, view, b) {
     if (!b || b.t <= 0) return;
-    const K = Math.max(1, view.w / 1300);
+    const K = hudK(ctx, view.w);
     const a = m.clamp(b.t / 0.4, 0, 1);
     const pop = b.t > b.total - 0.25 ? m.easeOutBack(m.clamp((b.total - b.t) / 0.25, 0, 1)) : 1;
     ctx.save();
@@ -179,7 +198,7 @@ RTL.ui = (function (C, m) {
   /* ---------- countdown ---------- */
   function countdown(ctx, view, n) {
     if (n == null) return;
-    const K = Math.max(1, view.w / 1300);
+    const K = hudK(ctx, view.w);
     const pop = 1 + 0.2 * Math.sin(view.time * 10);
     ctx.save();
     ctx.translate(view.w / 2, view.h * 0.4);
@@ -211,19 +230,24 @@ RTL.ui = (function (C, m) {
     const logo = (typeof RTL !== "undefined" && RTL.art && RTL.art.get("logo_banner")) || null;
     const title = "RICKSY TAXI LEAGUE";
     const ts = Math.min(30, w / 18) * K;
+    /* menus start below the marquee, never printed on top of it (short screens) */
+    let titleBottom;
     if (logo) {
       const lw = Math.min(w * 0.52, 430 * K);
       const lh = lw * (logo.height / logo.width);
-      ctx.drawImage(logo, w / 2 - lw / 2, Math.max(14, h * 0.035), lw, lh);
-      text(ctx, "KASI CAR SOCCER - 5 MINUTE DERBY", w / 2, Math.max(14, h * 0.035) + lh + 6, 9 * K, C.COLORS.uiDim, "center");
+      const ty = Math.max(14, h * 0.035);
+      ctx.drawImage(logo, w / 2 - lw / 2, ty, lw, lh);
+      text(ctx, "KASI CAR SOCCER - 5 MINUTE DERBY", w / 2, ty + lh + 6, 9 * K, C.COLORS.uiDim, "center");
+      titleBottom = ty + lh + 6 + 16 * K;
     } else {
       textShadow(ctx, title, w / 2, Math.max(24, h * 0.09), ts, C.COLORS.accent, "center");
       text(ctx, "KASI CAR SOCCER - 5 MINUTE DERBY", w / 2, Math.max(24, h * 0.09) + ts + 8, 9 * K, C.COLORS.uiDim, "center");
+      titleBottom = Math.max(24, h * 0.09) + ts + 8 + 16 * K;
     }
 
     if (ui.screen === "menu") {
       const bw = Math.min(320 * K, w - 60), bx = w / 2 - bw / 2;
-      let by = h * 0.30;
+      let by = Math.max(h * 0.30, titleBottom);
       const items = [
         ["PLAY MATCH", "playMatch"],
         ["FREE PLAY", "freePlay"],
@@ -239,7 +263,9 @@ RTL.ui = (function (C, m) {
     }
 
     if (ui.screen === "matchSetup") {
-      const bw = Math.min(360 * K, w - 50), bx = w / 2 - bw / 2, by = h * 0.30;
+      /* +26K headroom: the OPPONENT caption prints above `by`, so `by` must
+         clear the marquee subtitle, not just the logo art */
+      const bw = Math.min(360 * K, w - 50), bx = w / 2 - bw / 2, by = Math.max(h * 0.30, titleBottom + 26 * K);
       text(ctx, "OPPONENT", w / 2, by - 22, 10 * K, C.COLORS.uiDim, "center");
       /* difficulty row */
       const dw = (bw - 30) / 4;
@@ -248,9 +274,9 @@ RTL.ui = (function (C, m) {
         button(ctx, C.AI_DIFFICULTIES[i], dx, by, dw, 34 * K, ui.difficulty === i, { size: 8 * K });
         hit.add(dx, by, dw, 34 * K, "diff:" + i);
       }
-      let cy = by + 52 * K;
+      let cy = by + 60 * K;
       /* controls mode */
-      text(ctx, "CONTROLS STYLE", w / 2, cy - 20, 10 * K, C.COLORS.uiDim, "center");
+      text(ctx, "CONTROLS STYLE", w / 2, cy - 16, 10 * K, C.COLORS.uiDim, "center");
       const cw = (bw - 20) / 2;
       button(ctx, "ASSISTED - EASY", bx + 8, cy, cw, 40 * K, ui.assisted, { size: 9 * K });
       hit.add(bx + 8, cy, cw, 40 * K, "assisted");
@@ -265,7 +291,7 @@ RTL.ui = (function (C, m) {
     }
 
     if (ui.screen === "settings") {
-      const bw = Math.min(340 * K, w - 50), bx = w / 2 - bw / 2, by = h * 0.28;
+      const bw = Math.min(340 * K, w - 50), bx = w / 2 - bw / 2, by = Math.max(h * 0.28, titleBottom);
       let cy = by;
       button(ctx, "SOUND: " + (ui.muted ? "OFF" : "ON"), bx, cy, bw, 42 * K, ui.focus === "sound", { size: 11 * K });
       hit.add(bx, cy, bw, 42 * K, "toggleSound"); cy += 52 * K;
@@ -280,7 +306,7 @@ RTL.ui = (function (C, m) {
     }
 
     if (ui.screen === "controls") {
-      const bw = Math.min(400 * K, w - 40), bx = w / 2 - bw / 2, by = h * 0.22;
+      const bw = Math.min(400 * K, w - 40), bx = w / 2 - bw / 2, by = Math.max(h * 0.22, titleBottom);
       panel(ctx, bx, by - 24, bw, 260 * K, { bg: "#0b1522" });
       const rows = [
         ["DRIVE", "W/S or STICK UP/DOWN"],
@@ -316,13 +342,24 @@ RTL.ui = (function (C, m) {
       hit.add(bx, cy, bw, 40 * K, "quit");
     }
 
-    if (ui.screen === "fulltime") {
+    if (ui.screen === "fulltime" && ui.fullTime) {
       const ft = ui.fullTime;
       textShadow(ctx, ft.title, w / 2, h * 0.20, 24 * K, C.COLORS.accent, "center");
+      /* the verdict the player actually feels */
+      if (ft.verdict) {
+        const vc = ft.won === "win" ? C.COLORS.good : ft.won === "loss" ? C.COLORS.danger : "#ffffff";
+        textShadow(ctx, ft.verdict, w / 2, h * 0.27, 18 * K, vc, "center");
+      }
       let cy = h * 0.34;
       for (const line of ft.lines) {
         text(ctx, line, w / 2, cy, 11 * K, C.COLORS.uiInk, "center");
         cy += 24 * K;
+      }
+      if (ft.career && ft.career.played) {
+        const c = ft.career;
+        text(ctx, "CAREER W" + c.wins + " D" + c.draws + " L" + c.losses + (c.form ? "  FORM " + c.form : ""),
+          w / 2, cy, 9 * K, C.COLORS.uiDim, "center");
+        cy += 20 * K;
       }
       const bw = Math.min(300 * K, w - 60), bx = w / 2 - bw / 2;
       button(ctx, "REMATCH", bx, cy + 16, bw, 44 * K, ui.focus === "rematch", { size: 12 * K });
@@ -344,6 +381,7 @@ RTL.ui = (function (C, m) {
         '<div class="rtl-btn" data-btn="carry" id="rtl-b-carry">CARRY</div>' +
         '<div class="rtl-btn" data-btn="jump" id="rtl-b-jump">JUMP</div>' +
         '<div class="rtl-btn" data-btn="boost" id="rtl-b-boost">BOOST</div>' +
+        '<div class="rtl-btn" data-btn="fs" id="rtl-b-fs">⛶</div>' +
         '<div class="rtl-btn" data-btn="cam" id="rtl-b-cam">CAM</div>' +
         '<div class="rtl-btn" data-btn="pause" id="rtl-b-pause">II</div>';
       root.appendChild(el);

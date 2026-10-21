@@ -417,7 +417,7 @@ RTL.render = (function (C, m, W, S) {
     /* body at z */
     const pr = m.project(car.x, car.y, car.z, cam, s1);
     const faceRight = Math.cos(car.heading + (cam.rot != null ? cam.rot : -Math.PI / 4)) >= 0;
-    const frame = car.onGround ? Math.floor(car.wheelspin) % 2 : 2;
+    const frame = car.onGround ? m.mod(Math.floor(car.wheelspin), 2) : 2;   // wheelspin goes negative in reverse
     /* boost flame drawn BEHIND the car (opposite the nose), then car */
     if (car.boostHeld) {
       const bx = car.x - Math.cos(car.heading) * 2.6;
@@ -575,11 +575,11 @@ RTL.render = (function (C, m, W, S) {
       else if (p.kind === "smoke") ctx.fillStyle = `rgba(140,150,165,${(a * 0.7).toFixed(2)})`;
       else if (p.kind === "goalfx") {
         const gc = [[255, 61, 139], [255, 214, 10], [46, 230, 107], [0, 229, 255], [255, 61, 139]];
-        const c2 = gc[Math.floor(p.x * 3 + p.y * 5) % 5];
+        const c2 = gc[m.mod(Math.floor(p.x * 3 + p.y * 5), 5)];   // mod: fx can sit at negative coords
         ctx.fillStyle = `rgba(${c2[0]},${c2[1]},${c2[2]},${a.toFixed(2)})`;
       } else {
         const cols = [[255, 61, 139], [255, 214, 10], [46, 230, 107], [0, 229, 255]];
-        const cc = cols[Math.floor(p.x + p.y) % 4];
+        const cc = cols[m.mod(Math.floor(p.x + p.y), 4)];
         ctx.fillStyle = `rgba(${cc[0]},${cc[1]},${cc[2]},${a.toFixed(2)})`;
       }
       const size = Math.max(2, Math.round(view.cam.zoom * 0.45));
