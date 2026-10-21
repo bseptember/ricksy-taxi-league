@@ -148,7 +148,7 @@ RTL.ui = (function (C, m) {
     } else if (car && !car.carrying && car.carryCd <= 0) {
       /* SHOT READY hint (retro league parity) */
       if (touch) text(ctx, "SHOT READY - TAP SHOT", 24 * D, gaugeTop - 14 * K, 7 * K, C.COLORS.good);
-      else text(ctx, "SHOT READY - TAP F TO SHOOT", 12 * K, view.h - 76 * K, 7 * K, C.COLORS.good);
+      else text(ctx, "SHOT READY - TAP F TO SHOOT", 12 * K, gaugeTop - 22 * K, 7 * K, C.COLORS.good);   // clear of the BOOST label
     }
     /* first-drive control hint: shows for the first 8s of every match, then
        fades. Two columns of keycap chips so it never overflows. */
@@ -344,16 +344,25 @@ RTL.ui = (function (C, m) {
 
     if (ui.screen === "fulltime" && ui.fullTime) {
       const ft = ui.fullTime;
-      textShadow(ctx, ft.title, w / 2, h * 0.20, 24 * K, C.COLORS.accent, "center");
+      /* title starts below the marquee, never printed over the logo; on short
+         screens the stat lines squeeze so REMATCH / MENU still fit */
+      let cy = Math.max(h * 0.20, titleBottom);
+      textShadow(ctx, ft.title, w / 2, cy, 24 * K, C.COLORS.accent, "center");
+      cy += 32 * K;
       /* the verdict the player actually feels */
       if (ft.verdict) {
         const vc = ft.won === "win" ? C.COLORS.good : ft.won === "loss" ? C.COLORS.danger : "#ffffff";
-        textShadow(ctx, ft.verdict, w / 2, h * 0.27, 18 * K, vc, "center");
+        cy = Math.max(h * 0.27, cy);
+        textShadow(ctx, ft.verdict, w / 2, cy, 18 * K, vc, "center");
+        cy += 26 * K;
       }
-      let cy = h * 0.34;
+      cy = Math.max(h * 0.34, cy);
+      const careerH = ft.career && ft.career.played ? 20 * K : 0;
+      const room = h - cy - careerH - (82 + 36 * K);   // REMATCH/MENU block below
+      const lineH = Math.max(13 * K, Math.min(24 * K, room / Math.max(1, ft.lines.length)));
       for (const line of ft.lines) {
         text(ctx, line, w / 2, cy, 11 * K, C.COLORS.uiInk, "center");
-        cy += 24 * K;
+        cy += lineH;
       }
       if (ft.career && ft.career.played) {
         const c = ft.career;
